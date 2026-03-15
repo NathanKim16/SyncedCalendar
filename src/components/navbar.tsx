@@ -1,15 +1,126 @@
-
-
-
 function NavBar() {
-  //Navbar for the calendar app
+    const calendars = [
+        { id: 1, name: "Calendar", color: "#00a3ff" },
+    ];
+
     return (
-        <nav className="w-full fixed top-0 left-0 z-50 bg-white">
-            <div className="text-3xl font-bold">
-                <h1>Synced Calendar!</h1>
+        <nav style={{
+            width: "5.5rem",
+            height: "100vh",
+            backgroundColor: "#161b22",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            paddingTop: "1rem",
+            gap: "0.5rem",
+            position: "fixed",
+            left: 0,
+            top: 0,
+            zIndex: 50,
+        }}>
+            {/* home */}
+            <div style={{
+                width: "3.8rem",
+                height: "3.8rem",
+                backgroundColor: "#00a3ff",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                marginBottom: "0.5rem",
+                fontSize: "2rem",
+                transition: "border-radius 0.2s ease",
+            }}
+                onMouseEnter={e => (e.currentTarget.style.borderRadius = "1.2rem")}
+                onMouseLeave={e => (e.currentTarget.style.borderRadius = "50%")}
+            >
+                🗓️
+            </div>
+
+            <div style={{ width: "60%", height: "2px", backgroundColor: "#2a2f3b", margin: "0.3rem 0" }} />
+
+            {calendars.map((cal) => (
+                <div
+                    key={cal.id}
+                    title={cal.name}
+                    style={{
+                        width: "3.8rem",
+                        height: "3.8rem",
+                        backgroundColor: cal.color,
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        fontSize: "1.3rem",
+                        fontWeight: "700",
+                        color: "white",
+                        transition: "border-radius 0.2s ease, transform 0.15s ease",
+                        fontFamily: "Inter, sans-serif",
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.borderRadius = "1.2rem";
+                        e.currentTarget.style.transform = "scale(1.08)";
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.borderRadius = "50%";
+                        e.currentTarget.style.transform = "scale(1)";
+                    }}
+                >
+                    {cal.name.charAt(0)}
+                </div>
+            ))}
+
+            {/* add calendar */}
+            <div style={{
+                width: "3.8rem",
+                height: "3.8rem",
+                backgroundColor: "#2a2f3b",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                fontSize: "2.5rem",
+                color: "rgb(236, 226, 226)",
+                marginTop: "0.3rem",
+                transition: "border-radius 0.2s ease, background-color 0.2s ease",
+            }}
+                onMouseEnter={e => {
+                    e.currentTarget.style.borderRadius = "1.2rem";
+                    e.currentTarget.style.backgroundColor = "#1e2426";
+                }}
+                onMouseLeave={e => {
+                    e.currentTarget.style.borderRadius = "50%";
+                    e.currentTarget.style.backgroundColor = "#2a2f3b";
+                }}
+            >
+                +
+            </div>
+
+            {/* user */}
+            <div style={{
+                marginTop: "auto",
+                marginBottom: "1rem",
+                width: "3.8rem",
+                height: "3.8rem",
+                backgroundColor: "#2a2f3b",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                fontSize: "1.8rem",
+                transition: "border-radius 0.2s ease",
+            }}
+                onMouseEnter={e => (e.currentTarget.style.borderRadius = "1.2rem")}
+                onMouseLeave={e => (e.currentTarget.style.borderRadius = "50%")}
+            >
+                Test
             </div>
         </nav>
-    )
+    );
 }
 
-export default NavBar
+export default NavBar;

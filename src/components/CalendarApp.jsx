@@ -1,4 +1,5 @@
 import { useState } from "react"
+import NavBar from "./navbar"
 
 const CalendarApp = () => {
   //Lists of days and months
@@ -41,6 +42,7 @@ const CalendarApp = () => {
 
   return (
     <div className="calendar-app">
+        <NavBar />
         <div className="sidebar">
 
         </div>
@@ -81,7 +83,7 @@ const CalendarApp = () => {
                     
                 }
                 
-                {[...Array(42 - firstDayOfMonth - daysInMonth).keys()].map((dummy, index) => <span className="postdays" key={`futureday-${index}`}
+                {[...Array(Math.max(0, 42 - firstDayOfMonth - daysInMonth)).keys()].map((dummy, index) => <span className="postdays" key={`futureday-${index}`}
                     onClick={() => {
                         const day = index + 1;
                         const newMonth = currentMonth === 11 ? 0 : currentMonth + 1;
