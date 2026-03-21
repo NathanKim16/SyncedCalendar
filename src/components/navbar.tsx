@@ -1,4 +1,7 @@
+import { useNavigate } from "react-router-dom"
+
 function NavBar() {
+    const navigate = useNavigate();
     const calendars = [
         { id: 1, name: "Calendar", color: "#00a3ff" },
     ];
@@ -19,7 +22,8 @@ function NavBar() {
             zIndex: 50,
         }}>
             {/* home */}
-            <div style={{
+            <div onClick={() => navigate("/login")}
+            style={{
                 width: "3.8rem",
                 height: "3.8rem",
                 backgroundColor: "#00a3ff",
@@ -31,11 +35,11 @@ function NavBar() {
                 marginBottom: "0.5rem",
                 fontSize: "2rem",
                 transition: "border-radius 0.2s ease",
-            }}
-                onMouseEnter={e => (e.currentTarget.style.borderRadius = "1.2rem")}
-                onMouseLeave={e => (e.currentTarget.style.borderRadius = "50%")}
-            >
-                🗓️
+        }}
+        onMouseEnter={e => (e.currentTarget.style.borderRadius = "1.2rem")}
+        onMouseLeave={e => (e.currentTarget.style.borderRadius = "50%")}
+    >
+                Home
             </div>
 
             <div style={{ width: "60%", height: "2px", backgroundColor: "#2a2f3b", margin: "0.3rem 0" }} />

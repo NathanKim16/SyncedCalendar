@@ -42,7 +42,6 @@ const CalendarApp = () => {
 
   return (
     <div className="calendar-app">
-        <NavBar />
         <div className="sidebar">
 
         </div>
