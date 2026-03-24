@@ -4,10 +4,6 @@ import { Timestamp } from "firebase/firestore"
 import NavBar from "./navbar"
 
 const CalendarApp = () => {
-  //TEMPORARY VARIABLES
-    const CALENDAR_ID = "cal_00001";
-    const USER_ID = "usr_00001";
-
   // Lists of days and months
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
   const monthsOfYear = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
@@ -40,7 +36,7 @@ const CalendarApp = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const data = await getEventsByCalendar(CALENDAR_ID)
+        const data = await getEventsByCalendar("YOUR_CALENDAR_ID")
         setEvents(data)
       } catch (error) {
         console.error("Error fetching events:", error)
@@ -75,8 +71,8 @@ const CalendarApp = () => {
     end.setHours(endHours, endMinutes)
 
     const newEvent = {
-      cal_id: CALENDAR_ID,
-      created_by: USER_ID,
+      calendar_id: "YOUR_CALENDAR_ID",
+      created_by: "YOUR_USER_ID",
       title: eventTitle,
       description: "",
       start_time: Timestamp.fromDate(start),
@@ -88,7 +84,7 @@ const CalendarApp = () => {
 
     try {
       await createEvent(newEvent)
-      const updated = await getEventsByCalendar(CALENDAR_ID)
+      const updated = await getEventsByCalendar("YOUR_CALENDAR_ID")
       setEvents(updated)
       // Reset popup state
       setEventTitle("")
@@ -106,7 +102,7 @@ const CalendarApp = () => {
   const handleDeleteEvent = async (id) => {
     try {
       await deleteEvent(id)
-      const updated = await getEventsByCalendar(CALENDAR_ID)
+      const updated = await getEventsByCalendar("YOUR_CALENDAR_ID")
       setEvents(updated)
     } catch (error) {
       console.error("Error deleting event:", error)
