@@ -1,3 +1,4 @@
+// @ts-ignore
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import CalendarApp from "./components/CalendarApp"
 import NavBar from "./components/navbar"
