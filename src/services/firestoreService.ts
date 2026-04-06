@@ -25,14 +25,14 @@ interface Calendar {
 
 interface Membership {
   user_id: string;
-  cal_id: string;        // updated
+  cal_id: string;
   role: string;
   permissions: string[];
   joined_at: Timestamp;
 }
 
 interface Event {
-  cal_id: string;        // updated
+  cal_id: string;
   created_by: string;
   title: string;
   description: string;
@@ -53,7 +53,7 @@ interface RSVP {
 
 interface Availability {
   user_id: string;
-  cal_id: string;        // updated
+  cal_id: string;
   day_of_week: string;
   start_time: string;
   end_time: string;

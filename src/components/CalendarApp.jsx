@@ -40,7 +40,9 @@ const CalendarApp = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
+        console.log("Fetching events for calendar:", CALENDAR_ID)
         const data = await getEventsByCalendar(CALENDAR_ID)
+        console.log("Events returned:", data)
         setEvents(data)
       } catch (error) {
         console.error("Error fetching events:", error)
@@ -115,8 +117,9 @@ const CalendarApp = () => {
 
   return (
     <div className="calendar-app">
-      <NavBar />
-      <div className="sidebar"></div>
+      <div className="sidebar">
+        
+      </div>
       <div className="calendar">
         <h1 className="heading">Synced</h1>
         <div className="navigate-date">
