@@ -7,7 +7,7 @@
     overflow: hidden;
     margin: 0;
     display: flex;
-    background-color: rgb(236, 226, 226);
+    background-color: #0f1319;
     padding: 0 3rem 0 0;
     column-gap: 4rem;
     position: relative;
@@ -25,7 +25,7 @@
 .calendar {
     width: 60%;
     aspect-ratio: 7 / 4;
-    background-color: #1e2426;
+    background-color: #161b22;
     border-radius: 4rem;
     border: #1e2426;
     margin: 2rem 0;
@@ -65,13 +65,13 @@
 
 .navigate-date h2 {
     font-size: clamp(1.5rem,1.5cqi, 2.5rem);
-    color: #bbb;
+    color: rgb(236, 226, 226);
     padding-left: 1.3rem;
     margin: 0;
 }
 
 .navigate-date .year {
-    margin-left: -0.5rem;  /* adjust to taste */
+    margin-left: -0.5rem;
 }
 
 .buttons {

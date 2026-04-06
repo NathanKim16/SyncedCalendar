@@ -117,39 +117,33 @@ const CalendarApp = () => {
 
   return (
     <div className="calendar-app">
-      <div className="sidebar">
-        
-      </div>
-      <div className="calendar">
-        <h1 className="heading">Synced</h1>
-        <div className="navigate-date">
-          <h2 className="month">{monthsOfYear[currentMonth]},</h2>
-          <h2 className="year">{currentYear}</h2>
-          <div className="buttons">
-            <i className="bx bx-chevron-left" onClick={goToPrevMonth}></i>
-            <i className="bx bx-chevron-right" onClick={goToNextMonth}></i>
-          </div>
+        <div className="sidebar">
+
         </div>
-        <div className="weekdays">
-          {daysOfWeek.map((day) => <span key={day}>{day}</span>)}
-        </div>
-        <div className="days">
-          {/* Previous month's trailing days */}
-          {[...Array(firstDayOfMonth).keys()].map((dummy, index) => (
-            <span
-              className="predays"
-              key={`pastday-${index}`}
-              onClick={() => {
-                const day = daysInPriorMonth - firstDayOfMonth + index + 1
-                const newMonth = currentMonth === 0 ? 11 : currentMonth - 1
-                const newYear = currentMonth === 0 ? currentYear - 1 : currentYear
-                goToPrevMonth()
-                handleDayClick(day, newMonth, newYear)
-              }}
-            >
-              {daysInPriorMonth - firstDayOfMonth + index + 1}
-            </span>
-          ))}
+        <div className="calendar">
+            <h1 className="heading">Test Calendar</h1>
+            <div className="navigate-date">
+                <h2 className="month">{monthsOfYear[currentMonth]},</h2>
+                <h2 className="year">{currentYear}</h2>
+                <div className="buttons">
+                    <i className="bx bx-chevron-left" onClick={goToPrevMonth}></i>
+                    <i className="bx bx-chevron-right" onClick={goToNextMonth}></i>
+                </div>
+            </div>
+            <div className="weekdays">
+                {/* this will dynamically render each element of the days of the week array.*/}
+                {daysOfWeek.map((day) => <span key={day}>{day}</span>)}
+            </div>
+            <div className="days">
+                {[...Array(firstDayOfMonth).keys()].map((dummy, index) => <span className="predays" key={`pastday-${index}`}
+                    onClick={() => {
+                        const day = daysInPriorMonth - firstDayOfMonth + index + 1;
+                        const newMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+                        const newYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+                        goToPrevMonth(); 
+                        handleDayClick(day, newMonth, newYear); }}>
+                        {daysInPriorMonth - firstDayOfMonth + index + 1}</span>)}
 
           {/* Current month's days */}
           {[...Array(daysInMonth).keys()].map((dummy, index) => (
