@@ -65,13 +65,13 @@
 
 .navigate-date h2 {
     font-size: clamp(1.5rem,1.5cqi, 2.5rem);
-    color: #bbb;
+    color: rgb(236, 226, 226);
     padding-left: 1.3rem;
     margin: 0;
 }
 
 .navigate-date .year {
-    margin-left: -0.5rem;  /* adjust to taste */
+    margin-left: -0.5rem;
 }
 
 .buttons {

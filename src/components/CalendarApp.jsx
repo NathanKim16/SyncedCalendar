@@ -46,7 +46,7 @@ const CalendarApp = () => {
 
         </div>
         <div className="calendar">
-            <h1 className="heading">Synced</h1>
+            <h1 className="heading">Test Calendar</h1>
             <div className="navigate-date">
                 <h2 className="month">{monthsOfYear[currentMonth]},</h2>
                 <h2 className="year">{currentYear}</h2>
