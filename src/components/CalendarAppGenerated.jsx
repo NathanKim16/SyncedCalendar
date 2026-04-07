@@ -1,16 +1,9 @@
 import { useState, useEffect } from "react"
-import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent } from "../services/firestoreService"
+import { getEventsByCalendar, createEvent, deleteEvent } from "../services/firestoreService"
 import { Timestamp } from "firebase/firestore"
 import NavBar from "./navbar"
 
 const CalendarApp = () => {
-  //TEMPORARY VARIABLES
-    const USER_ID = "usr_00001";
-
-  //Calendar IDs
-  const [calendars, setCalendars] = useState([])
-  const [activeCalendarId, setActiveCalendarId] = useState(null)
-
   // Lists of days and months
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
   const monthsOfYear = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
@@ -39,43 +32,18 @@ const CalendarApp = () => {
   // with 0 being sunday and 6 being saturday
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay()
 
-  //Fetch Calendars that the user is in
+  // ── NEW: Fetch events on mount ────────────────────────────
   useEffect(() => {
-    const fetchCalendars = async () => {
-      try {
-        const memberships = await getMembershipsByUser(USER_ID)
-        const calendarDocs = await Promise.all(
-          memberships.map(m => getCalendar(m.cal_id))
-        )
-        const calendarList = calendarDocs
-          .filter(doc => doc.exists())
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-        setCalendars(calendarList)
-        if (calendarList.length > 0) {
-          setActiveCalendarId(calendarList[0].id) // default to first
-        }
-      } catch (error) {
-        console.error("Error fetching calendars:", error)
-      }
-    }
-    fetchCalendars()
-  }, [])
-
-  //Fetch events for the active calendar
-  useEffect(() => {
-    if (!activeCalendarId) return
     const fetchEvents = async () => {
       try {
-        console.log("Fetching events for calendar:", activeCalendarId)
-        const data = await getEventsByCalendar(activeCalendarId)
-        console.log("Events returned:", data)
+        const data = await getEventsByCalendar("YOUR_CALENDAR_ID")
         setEvents(data)
       } catch (error) {
         console.error("Error fetching events:", error)
       }
     }
     fetchEvents()
-  }, [activeCalendarId])
+  }, [])
 
   const goToPrevMonth = () => {
     setCurrentMonth((prevMonth) => (prevMonth === 0 ? 11 : prevMonth - 1))
@@ -103,8 +71,8 @@ const CalendarApp = () => {
     end.setHours(endHours, endMinutes)
 
     const newEvent = {
-      cal_id: activeCalendarId,
-      created_by: USER_ID,
+      calendar_id: "YOUR_CALENDAR_ID",
+      created_by: "YOUR_USER_ID",
       title: eventTitle,
       description: "",
       start_time: Timestamp.fromDate(start),
@@ -116,7 +84,7 @@ const CalendarApp = () => {
 
     try {
       await createEvent(newEvent)
-      const updated = await getEventsByCalendar(activeCalendarId)
+      const updated = await getEventsByCalendar("YOUR_CALENDAR_ID")
       setEvents(updated)
       // Reset popup state
       setEventTitle("")
@@ -134,7 +102,7 @@ const CalendarApp = () => {
   const handleDeleteEvent = async (id) => {
     try {
       await deleteEvent(id)
-      const updated = await getEventsByCalendar(activeCalendarId)
+      const updated = await getEventsByCalendar("YOUR_CALENDAR_ID")
       setEvents(updated)
     } catch (error) {
       console.error("Error deleting event:", error)
@@ -143,45 +111,38 @@ const CalendarApp = () => {
 
   return (
     <div className="calendar-app">
-        <div className="sidebar">
-          {calendars.map(cal => (
-            <div
-              key={cal.id}
-              className={`calendar-item ${cal.id === activeCalendarId ? "active" : ""}`}
-              onClick={() => setActiveCalendarId(cal.id)}
-            >
-              <span
-                className="calendar-color"
-                style={{ backgroundColor: cal.color }}
-              ></span>
-              <span className="calendar-name">{cal.name}</span>
-            </div>
-          ))}
+      <NavBar />
+      <div className="sidebar"></div>
+      <div className="calendar">
+        <h1 className="heading">Synced</h1>
+        <div className="navigate-date">
+          <h2 className="month">{monthsOfYear[currentMonth]},</h2>
+          <h2 className="year">{currentYear}</h2>
+          <div className="buttons">
+            <i className="bx bx-chevron-left" onClick={goToPrevMonth}></i>
+            <i className="bx bx-chevron-right" onClick={goToNextMonth}></i>
+          </div>
         </div>
-        <div className="calendar">
-            <h1 className="heading">Test Calendar</h1>
-            <div className="navigate-date">
-                <h2 className="month">{monthsOfYear[currentMonth]},</h2>
-                <h2 className="year">{currentYear}</h2>
-                <div className="buttons">
-                    <i className="bx bx-chevron-left" onClick={goToPrevMonth}></i>
-                    <i className="bx bx-chevron-right" onClick={goToNextMonth}></i>
-                </div>
-            </div>
-            <div className="weekdays">
-                {/* this will dynamically render each element of the days of the week array.*/}
-                {daysOfWeek.map((day) => <span key={day}>{day}</span>)}
-            </div>
-            <div className="days">
-                {[...Array(firstDayOfMonth).keys()].map((dummy, index) => <span className="predays" key={`pastday-${index}`}
-                    onClick={() => {
-                        const day = daysInPriorMonth - firstDayOfMonth + index + 1;
-                        const newMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-                        const newYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-
-                        goToPrevMonth(); 
-                        handleDayClick(day, newMonth, newYear); }}>
-                        {daysInPriorMonth - firstDayOfMonth + index + 1}</span>)}
+        <div className="weekdays">
+          {daysOfWeek.map((day) => <span key={day}>{day}</span>)}
+        </div>
+        <div className="days">
+          {/* Previous month's trailing days */}
+          {[...Array(firstDayOfMonth).keys()].map((dummy, index) => (
+            <span
+              className="predays"
+              key={`pastday-${index}`}
+              onClick={() => {
+                const day = daysInPriorMonth - firstDayOfMonth + index + 1
+                const newMonth = currentMonth === 0 ? 11 : currentMonth - 1
+                const newYear = currentMonth === 0 ? currentYear - 1 : currentYear
+                goToPrevMonth()
+                handleDayClick(day, newMonth, newYear)
+              }}
+            >
+              {daysInPriorMonth - firstDayOfMonth + index + 1}
+            </span>
+          ))}
 
           {/* Current month's days */}
           {[...Array(daysInMonth).keys()].map((dummy, index) => (
