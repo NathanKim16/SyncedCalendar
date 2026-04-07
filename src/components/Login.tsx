@@ -1,9 +1,26 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { doSignInWithEmailAndPassword, doCreateUserWithEmailAndPassword } from "./firebase/auth"
+import { useAuth } from "./context/auth/index"
 
 function Login() {
     const navigate = useNavigate()
     const [isSignUp, setIsSignUp] = useState(false)
+    const { userLoggedIn } = useAuth()
+    const [email, setEmail]  = useState("")
+    const [password, setPassword] = useState("");
+    const [comfirmPassword, setComfirmPassword] = useState("");
+
+
+    const onSubmit = async () => {
+        if (isSignUp) {
+            await doCreateUserWithEmailAndPassword(email, password)
+        } else {
+            await doSignInWithEmailAndPassword(email, password)
+            //TODO: Navigate to home page if successful
+        }
+    }
+
 
     return (
         <>
@@ -162,22 +179,28 @@ function Login() {
                             className="login-input"
                             type="email"
                             placeholder="Email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                         />
                         <input
                             className="login-input"
                             type="password"
                             placeholder="Password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                         />
                         {isSignUp && (
                             <input
                                 className="login-input"
                                 type="password"
                                 placeholder="Confirm password"
+                                value={comfirmPassword}
+                                onChange={(e) => setComfirmPassword(e.target.value)}
                             />
                         )}
                     </div>
 
-                    <button className="login-btn" onClick={() => navigate("/")}>
+                    <button className="login-btn" onClick={() => onSubmit()}>
                         {isSignUp ? "Create Account" : "Sign In"}
                     </button>
 

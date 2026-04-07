@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"
+import { AuthProvider } from "./components/context/auth/index"
 import CalendarApp from "./components/CalendarApp"
 import NavBar from "./components/navbar"
 import WeekView from "./components/WeekView"
@@ -39,9 +40,12 @@ const AppContent = () => {
 
 function App() {
     return (
-        <BrowserRouter>
-            <AppContent />
-        </BrowserRouter>
+        <AuthProvider>
+            <BrowserRouter>
+                <AppContent />
+            </BrowserRouter>
+        </AuthProvider>
+        
     )
 }
 
