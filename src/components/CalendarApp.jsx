@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react"
-import { getEventsByCalendar, createEvent, deleteEvent } from "../services/firestoreService"
+import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent } from "../services/firestoreService"
 import { Timestamp } from "firebase/firestore"
 import NavBar from "./navbar"
 
 const CalendarApp = () => {
   //TEMPORARY VARIABLES
-    const CALENDAR_ID = "cal_00001";
     const USER_ID = "usr_00001";
+
+  //Calendar IDs
+  const [calendars, setCalendars] = useState([])
+  const [activeCalendarId, setActiveCalendarId] = useState(null)
 
   // Lists of days and months
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -36,12 +39,35 @@ const CalendarApp = () => {
   // with 0 being sunday and 6 being saturday
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay()
 
-  // ── NEW: Fetch events on mount ────────────────────────────
+  //Fetch Calendars that the user is in
   useEffect(() => {
+    const fetchCalendars = async () => {
+      try {
+        const memberships = await getMembershipsByUser(USER_ID)
+        const calendarDocs = await Promise.all(
+          memberships.map(m => getCalendar(m.cal_id))
+        )
+        const calendarList = calendarDocs
+          .filter(doc => doc.exists())
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+        setCalendars(calendarList)
+        if (calendarList.length > 0) {
+          setActiveCalendarId(calendarList[0].id) // default to first
+        }
+      } catch (error) {
+        console.error("Error fetching calendars:", error)
+      }
+    }
+    fetchCalendars()
+  }, [])
+
+  //Fetch events for the active calendar
+  useEffect(() => {
+    if (!activeCalendarId) return
     const fetchEvents = async () => {
       try {
-        console.log("Fetching events for calendar:", CALENDAR_ID)
-        const data = await getEventsByCalendar(CALENDAR_ID)
+        console.log("Fetching events for calendar:", activeCalendarId)
+        const data = await getEventsByCalendar(activeCalendarId)
         console.log("Events returned:", data)
         setEvents(data)
       } catch (error) {
@@ -49,7 +75,7 @@ const CalendarApp = () => {
       }
     }
     fetchEvents()
-  }, [])
+  }, [activeCalendarId])
 
   const goToPrevMonth = () => {
     setCurrentMonth((prevMonth) => (prevMonth === 0 ? 11 : prevMonth - 1))
@@ -77,7 +103,7 @@ const CalendarApp = () => {
     end.setHours(endHours, endMinutes)
 
     const newEvent = {
-      cal_id: CALENDAR_ID,
+      cal_id: activeCalendarId,
       created_by: USER_ID,
       title: eventTitle,
       description: "",
@@ -90,7 +116,7 @@ const CalendarApp = () => {
 
     try {
       await createEvent(newEvent)
-      const updated = await getEventsByCalendar(CALENDAR_ID)
+      const updated = await getEventsByCalendar(activeCalendarId)
       setEvents(updated)
       // Reset popup state
       setEventTitle("")
@@ -108,7 +134,7 @@ const CalendarApp = () => {
   const handleDeleteEvent = async (id) => {
     try {
       await deleteEvent(id)
-      const updated = await getEventsByCalendar(CALENDAR_ID)
+      const updated = await getEventsByCalendar(activeCalendarId)
       setEvents(updated)
     } catch (error) {
       console.error("Error deleting event:", error)
@@ -118,7 +144,19 @@ const CalendarApp = () => {
   return (
     <div className="calendar-app">
         <div className="sidebar">
-
+          {calendars.map(cal => (
+            <div
+              key={cal.id}
+              className={`calendar-item ${cal.id === activeCalendarId ? "active" : ""}`}
+              onClick={() => setActiveCalendarId(cal.id)}
+            >
+              <span
+                className="calendar-color"
+                style={{ backgroundColor: cal.color }}
+              ></span>
+              <span className="calendar-name">{cal.name}</span>
+            </div>
+          ))}
         </div>
         <div className="calendar">
             <h1 className="heading">Test Calendar</h1>
