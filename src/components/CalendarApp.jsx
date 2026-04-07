@@ -31,6 +31,7 @@ const CalendarApp = () => {
   const [endHours, setEndHours] = useState(0)
   const [endMinutes, setEndMinutes] = useState(0)
 
+  //Test Comment
   // daysInMonth takes in current year, the future month, and the day just before
   // (the last day of the current month) to get the current months number of days
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
