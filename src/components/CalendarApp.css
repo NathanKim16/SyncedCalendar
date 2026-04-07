@@ -177,13 +177,18 @@
     width: 30%;
     height: 100%;
     padding: 3rem 0;
+    overflow-y: auto;
+    
+}
 
+.events::-webkit-scrollbar {
+    display: none;
 }
 
 .event-popup {
     position: absolute;
-    top: 30%;
-    right: -22cqi;
+    top: 30%;   
+    right : 3cqi;
     background-color: #161b22;
     width: clamp(25rem, 21cqi, 40rem);
     aspect-ratio: 10/11; 
@@ -269,6 +274,25 @@
 
 .event-popup textarea:focus::placeholder {
     color: transparent;
+}
+
+.color-picker {
+    display: flex;
+    column-gap: 1rem;
+}
+
+.color-title {
+    font-size: clamp(1rem, 1cqi, 1.5rem);
+    display: flex;
+    align-items: center;
+    color: #ddd;
+}
+
+.color-picker input[type='color'] {
+    width: 10rem;
+    height: 3rem;
+    border: none;
+    cursor: pointer;
 }
 
 .event-pop-btn {
