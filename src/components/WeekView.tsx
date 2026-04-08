@@ -11,12 +11,20 @@ interface Event {
     calendarName: string
 }
 
+
 const SAMPLE_EVENTS: Event[] = [
     { id: 1, title: "Meeting with John", date: new Date(2026, 3, 5), startTime: "9:00", endTime: "10:00", color: "#00a3ff", calendarName: "Test Calendar" },
+    { id: 2, title: "Lunch with Sarah", date: new Date(2026, 3, 6), startTime: "12:30", endTime: "13:30", color: "#ff5722", calendarName: "Test Calendar" },
+    { id: 3, title: "Project Deadline", date: new Date(2026, 3, 7), startTime: "17:00", endTime: "17:30", color: "#4caf50", calendarName: "Test Calendar" },
+    { id: 4, title: "Gym Session", date: new Date(2026, 3, 8), startTime: "18:00", endTime: "19:00", color: "#9c27b0", calendarName: "Test Calendar" },
+    { id: 5, title: "Dinner with Family", date: new Date(2026, 3, 9), startTime: "20:00", endTime: "21:30", color: "#ff9800", calendarName: "Test Calendar" },
 ]
+
 
 const WeekView = () => {
     const navigate = useNavigate()
+    // Intial events need api call to fetch events for the current week
+    const [thisWeekEvents, setThisWeekEvents] = useState<Event[]>([])
     const [currentWeekStart, setCurrentWeekStart] = useState(() => {
         const today = new Date()
         const day = today.getDay()
@@ -26,6 +34,15 @@ const WeekView = () => {
         return start
     })
 
+    
+
+    const pullFromServer = () => {
+        const startDate = new Date(currentWeekStart)
+        const endDate = new Date(currentWeekStart)
+        endDate.setDate(endDate.getDate() + 6)
+        //  API call to fetch events for the week
+        setThisWeekEvents(SAMPLE_EVENTS)
+    }
     const weekDays = Array.from({ length: 7 }, (_, i) => {
         const d = new Date(currentWeekStart)
         d.setDate(currentWeekStart.getDate() + i)
@@ -36,16 +53,18 @@ const WeekView = () => {
         const prev = new Date(currentWeekStart)
         prev.setDate(prev.getDate() - 7)
         setCurrentWeekStart(prev)
+        pullFromServer()
     }
 
     const goToNextWeek = () => {
         const next = new Date(currentWeekStart)
         next.setDate(next.getDate() + 7)
         setCurrentWeekStart(next)
+        pullFromServer()
     }
 
     const getEventsForDay = (day: Date) =>
-        SAMPLE_EVENTS.filter(e =>
+        thisWeekEvents.filter(e =>
             e.date.getFullYear() === day.getFullYear() &&
             e.date.getMonth() === day.getMonth() &&
             e.date.getDate() === day.getDate()
@@ -60,7 +79,7 @@ const WeekView = () => {
     const monthYear = currentWeekStart.toLocaleString('default', { month: 'long', year: 'numeric' })
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
-    const weekEvents = SAMPLE_EVENTS.filter(e =>
+    const weekEvents = thisWeekEvents.filter(e =>
         weekDays.some(d =>
             d.getDate() === e.date.getDate() &&
             d.getMonth() === e.date.getMonth() &&

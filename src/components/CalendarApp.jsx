@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent } from "../services/firestoreService"
+import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent } from "../services/firestoreService"
 import { Timestamp } from "firebase/firestore"
 import NavBar from "./navbar"
 
@@ -30,6 +30,10 @@ const CalendarApp = () => {
   const [startMinutes, setStartMinutes] = useState(0)
   const [endHours, setEndHours] = useState(0)
   const [endMinutes, setEndMinutes] = useState(0)
+  const [eventColor, setEventColor] = useState("#00a3ff")
+  const [editingEvent, setEditingEvent] = useState(null)
+
+
 
   //Test Comment
   // daysInMonth takes in current year, the future month, and the day just before
@@ -70,6 +74,7 @@ const CalendarApp = () => {
         console.log("Fetching events for calendar:", activeCalendarId)
         const data = await getEventsByCalendar(activeCalendarId)
         console.log("Events returned:", data)
+        data.sort((a, b) => a.start_time.toDate() - b.start_time.toDate())
         setEvents(data)
       } catch (error) {
         console.error("Error fetching events:", error)
@@ -89,13 +94,29 @@ const CalendarApp = () => {
   }
 
   const handleDayClick = (day, month, year) => {
-    setSelectedDay(new Date(year, month, day))
-    setShowEventPopup(true)
+    const today = new Date()
+    const clickedDate = new Date(year, month, day)
+    if (clickedDate >= today || (clickedDate.getDate() === today.getDate() && clickedDate.getMonth() === today.getMonth() && clickedDate.getFullYear() === today.getFullYear())) {
+      setShowEventPopup(true)
+      setEventTitle('')
+      setStartHours(0)
+      setStartMinutes(0)
+      setEndHours(23)
+      setEndMinutes(59)
+      setEventColor("#00a3ff")
+      setEditingEvent(null)
+    }
+    else {
+      setShowEventPopup(false)
+      setEditingEvent(null)
+    }
+    setSelectedDay(clickedDate)
   }
 
   // ── NEW: Add event handler ────────────────────────────────
   const handleAddEvent = async () => {
     if (!eventTitle.trim()) return
+    if (!activeCalendarId) return
 
     const start = new Date(selectedDay)
     start.setHours(startHours, startMinutes)
@@ -113,29 +134,52 @@ const CalendarApp = () => {
       all_day: false,
       location: "",
       rsvp_deadline: "",
+      color: eventColor || "#00a3ff",
     }
 
     try {
-      await createEvent(newEvent)
+      if (editingEvent) {
+            await updateEvent(editingEvent, newEvent)
+       } else {
+            await createEvent(newEvent)   
+      }
       const updated = await getEventsByCalendar(activeCalendarId)
+      updated.sort((a, b) => a.start_time.toDate() - b.start_time.toDate())
       setEvents(updated)
       // Reset popup state
       setEventTitle("")
       setStartHours(0)
       setStartMinutes(0)
-      setEndHours(0)
-      setEndMinutes(0)
+      setEndHours(23)
+      setEndMinutes(59)
       setShowEventPopup(false)
+      setEventColor("#00a3ff")
+      setEditingEvent(null)
     } catch (error) {
-      console.error("Error adding event:", error)
+      console.error("Error saving event:", error)
     }
   }
+
+  const handleEditEvent = (event) => {
+    setEventTitle(event.title)
+    setEventColor(event.color)
+    setStartHours(event.start_time.toDate().getHours())
+    setStartMinutes(event.start_time.toDate().getMinutes())
+    setEndHours(event.end_time.toDate().getHours())
+    setEndMinutes(event.end_time.toDate().getMinutes())
+    setSelectedDay(event.start_time.toDate())
+    setEditingEvent(event.id)
+    setShowEventPopup(true)
+    
+  }
+
 
   // ── NEW: Delete event handler ─────────────────────────────
   const handleDeleteEvent = async (id) => {
     try {
       await deleteEvent(id)
       const updated = await getEventsByCalendar(activeCalendarId)
+      updated.sort((a, b) => a.start_time.toDate() - b.start_time.toDate())
       setEvents(updated)
     } catch (error) {
       console.error("Error deleting event:", error)
@@ -233,19 +277,23 @@ const CalendarApp = () => {
                 type="number"
                 name="hours"
                 min={0}
-                max={24}
+                max={23}
                 className="hours"
                 value={startHours}
-                onChange={(e) => setStartHours(Number(e.target.value))}
+                onChange={(e) => { if(Number(e.target.value) >= 0 && Number(e.target.value) <= 23 &&
+                (Number(e.target.value) < endHours || (Number(e.target.value) === endHours && startMinutes < endMinutes)))  
+                { setStartHours(Number(e.target.value)) } }}
               />
               <input
                 type="number"
                 name="minutes"
                 min={0}
-                max={60}
+                max={59}
                 className="minutes"
                 value={startMinutes}
-                onChange={(e) => setStartMinutes(Number(e.target.value))}
+                onChange={(e) => { if(Number(e.target.value) >= 0 && Number(e.target.value) <= 59 &&
+                (startHours < endHours || (startHours === endHours && Number(e.target.value) < endMinutes)))  
+                { setStartMinutes(Number(e.target.value)) } }}
               />
             </div>
             <div className="time-input-end">
@@ -254,19 +302,23 @@ const CalendarApp = () => {
                 type="number"
                 name="hours"
                 min={0}
-                max={24}
+                max={23}
                 className="hours"
                 value={endHours}
-                onChange={(e) => setEndHours(Number(e.target.value))}
+                onChange={(e) => { if(Number(e.target.value) >= 0 && Number(e.target.value) <= 23 &&
+                (Number(e.target.value) > startHours || (Number(e.target.value) === startHours && endMinutes > startMinutes)))  
+                { setEndHours(Number(e.target.value)) } }}
               />
               <input
                 type="number"
                 name="minutes"
                 min={0}
-                max={60}
+                max={59}
                 className="minutes"
                 value={endMinutes}
-                onChange={(e) => setEndMinutes(Number(e.target.value))}
+                onChange={(e) => { if(Number(e.target.value) >= 0 && Number(e.target.value) <= 59 &&
+                (endHours > startHours || (endHours === startHours && Number(e.target.value) > startMinutes)))  
+                { setEndMinutes(Number(e.target.value)) } }}
               />
             </div>
             {/* ── NEW: Controlled textarea ── */}
@@ -276,13 +328,21 @@ const CalendarApp = () => {
               value={eventTitle}
               onChange={(e) => setEventTitle(e.target.value)}
             ></textarea>
+            <div className="color-picker">
+                    <div className="color-title">Event Color:</div>
+                    <input type="color" value={eventColor} onChange={(e) => setEventColor(e.target.value)} />
+                </div>
             {/* ── NEW: onClick wired to handleAddEvent ── */}
             <button className="event-pop-btn" onClick={handleAddEvent}>
-              Add Event
+              {editingEvent ? "Save Changes" : "Add Event"}
             </button>
             <button
               className="close-event-popup"
-              onClick={() => setShowEventPopup(false)}
+              onClick={() => {
+                setShowEventPopup(false)
+                setEditingEvent(null)
+                setEventColor("#00a3ff")
+              }}
             >
               <i className="bx bx-x"></i>
             </button>
@@ -293,7 +353,7 @@ const CalendarApp = () => {
       {/* ── NEW: Dynamic event list from Firestore ── */}
       <div className="events">
         {events.map((event) => (
-          <div className="event" key={event.id}>
+          <div className="event" key={event.id} style={{backgroundColor: event.color}}>
             <div className="event-date-wrapper">
               <div className="event-date">
                 {event.start_time.toDate().toLocaleDateString("en-US", {
@@ -320,7 +380,7 @@ const CalendarApp = () => {
             </div>
             <div className="event-text">{event.title}</div>
             <div className="event-button">
-              <i className="bx bxs-edit-alt"></i>
+              <i className="bx bxs-edit-alt" onClick={() => handleEditEvent(event)}></i>
               {/* ── NEW: Delete wired to handleDeleteEvent ── */}
               <i
                 className="bx bxs-message-alt-x"

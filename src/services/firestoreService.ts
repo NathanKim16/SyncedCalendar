@@ -41,6 +41,7 @@ interface Event {
   all_day: boolean;
   location: string;
   rsvp_deadline: string;
+  color: string;
 }
 
 interface RSVP {
