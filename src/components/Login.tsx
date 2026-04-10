@@ -10,16 +10,35 @@ function Login() {
     const [email, setEmail]  = useState("")
     const [password, setPassword] = useState("");
     const [comfirmPassword, setComfirmPassword] = useState("");
-
+    const [error, setError] = useState("")
 
     const onSubmit = async () => {
+        setError("")
+    try {
         if (isSignUp) {
+            if (password !== comfirmPassword) {
+                setError("Passwords do not match")
+                return
+            }
             await doCreateUserWithEmailAndPassword(email, password)
+            navigate("/")
         } else {
             await doSignInWithEmailAndPassword(email, password)
-            //TODO: Navigate to home page if successful
+            navigate("/")
+        }
+    } catch (err: any) {
+        const code = err.code
+        if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
+            setError("Incorrect email or password")
+        } else if (code === "auth/invalid-email") {
+            setError("Invalid email address")
+        } else if (code === "auth/too-many-requests") {
+            setError("Too many attempts, please try again later")
+        } else {
+            setError("Something went wrong, please try again")
         }
     }
+}
 
 
     return (
@@ -199,6 +218,21 @@ function Login() {
                             />
                         )}
                     </div>
+                    
+                    {error && (
+                        <div style={{
+                            backgroundColor: "rgba(255, 80, 80, 0.1)",
+                            border: "1px solid rgba(255, 80, 80, 0.4)",
+                            borderRadius: "0.8rem",
+                            padding: "1rem 1.5rem",
+                            color: "#ff5050",
+                            fontFamily: "Inter, sans-serif",
+                            fontSize: "1.2rem",
+                            textAlign: "center",
+                        }}>
+                            {error}
+                        </div>
+                    )}
 
                     <button className="login-btn" onClick={() => onSubmit()}>
                         {isSignUp ? "Create Account" : "Sign In"}
