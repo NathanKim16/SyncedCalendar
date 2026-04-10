@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react"
 import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent } from "../services/firestoreService"
 import { Timestamp } from "firebase/firestore"
-import NavBar from "./navbar"
 
 const CalendarApp = () => {
   //TEMPORARY VARIABLES
@@ -32,6 +31,7 @@ const CalendarApp = () => {
   const [endMinutes, setEndMinutes] = useState(0)
   const [eventColor, setEventColor] = useState("#00a3ff")
   const [editingEvent, setEditingEvent] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
 
 
@@ -117,6 +117,9 @@ const CalendarApp = () => {
   const handleAddEvent = async () => {
     if (!eventTitle.trim()) return
     if (!activeCalendarId) return
+    if (isSubmitting) return
+
+    setIsSubmitting(true) // Prevent multiple submissions
 
     const start = new Date(selectedDay)
     start.setHours(startHours, startMinutes)
@@ -157,6 +160,8 @@ const CalendarApp = () => {
       setEditingEvent(null)
     } catch (error) {
       console.error("Error saving event:", error)
+    } finally{
+      setIsSubmitting(false)
     }
   }
 
@@ -333,7 +338,7 @@ const CalendarApp = () => {
                     <input type="color" value={eventColor} onChange={(e) => setEventColor(e.target.value)} />
                 </div>
             {/* ── NEW: onClick wired to handleAddEvent ── */}
-            <button className="event-pop-btn" onClick={handleAddEvent}>
+            <button className="event-pop-btn" onClick={handleAddEvent} disabled={isSubmitting}>
               {editingEvent ? "Save Changes" : "Add Event"}
             </button>
             <button
