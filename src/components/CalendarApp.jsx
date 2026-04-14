@@ -6,7 +6,6 @@ import { useAuth } from "./context/auth/index"
 const CalendarApp = () => {
   //Major variables
   const { currentUser, userLoggedIn, loading } = useAuth()
-  console.log("Current User:", currentUser)
   const userId = currentUser?.uid
 
   //Calendar IDs
@@ -53,6 +52,7 @@ const CalendarApp = () => {
     const fetchCalendars = async () => {
       try {
         const memberships = await getMembershipsByUser(userId)
+
         const calendarDocs = await Promise.all(
           memberships.map(m => getCalendar(m.cal_id))
         )
