@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react"
 import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent } from "../services/firestoreService"
 import { Timestamp } from "firebase/firestore"
+import { useAuth } from "./context/auth/index"
 
 const CalendarApp = () => {
-  //TEMPORARY VARIABLES
-    const USER_ID = "usr_00001";
+  //Major variables
+  const { currentUser, userLoggedIn, loading } = useAuth()
+  console.log("Current User:", currentUser)
+  const userId = currentUser?.uid
 
   //Calendar IDs
   const [calendars, setCalendars] = useState([])
@@ -46,9 +49,10 @@ const CalendarApp = () => {
 
   //Fetch Calendars that the user is in
   useEffect(() => {
+    if (!userId) return
     const fetchCalendars = async () => {
       try {
-        const memberships = await getMembershipsByUser(USER_ID)
+        const memberships = await getMembershipsByUser(userId)
         const calendarDocs = await Promise.all(
           memberships.map(m => getCalendar(m.cal_id))
         )
@@ -64,7 +68,7 @@ const CalendarApp = () => {
       }
     }
     fetchCalendars()
-  }, [])
+  }, [userId])
 
   //Fetch events for the active calendar
   useEffect(() => {
@@ -129,7 +133,7 @@ const CalendarApp = () => {
 
     const newEvent = {
       cal_id: activeCalendarId,
-      created_by: USER_ID,
+      created_by: userId,
       title: eventTitle,
       description: "",
       start_time: Timestamp.fromDate(start),
@@ -189,6 +193,14 @@ const CalendarApp = () => {
     } catch (error) {
       console.error("Error deleting event:", error)
     }
+  }
+
+  //Loading Guards
+  if (loading) {
+    return <div>Loading...</div>
+  }
+  if (!userLoggedIn) {
+    return <div>Please log in to view your calendar.</div>
   }
 
   return (
