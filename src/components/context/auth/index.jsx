@@ -11,7 +11,7 @@ export function AuthProvider({ children }){
     //set initialize state of user, userloggedin, and loading user
     const [currentUser, setCurrentUser] = useState(null);
     const [userLoggedIn, setUserLoggedIn] = useState(false);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     useEffect(()=>{
         const unsubscribe = onAuthStateChanged(auth, initializeUser);
