@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react"
 import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent } from "../services/firestoreService"
 import { Timestamp } from "firebase/firestore"
-import NavBar from "./navbar"
+import { useAuth } from "./context/auth/index"
 
 const CalendarApp = () => {
-  //TEMPORARY VARIABLES
-    const USER_ID = "usr_00001";
+  //Major variables
+  const { currentUser, userLoggedIn, loading } = useAuth()
+  const userId = currentUser?.uid
 
   //Calendar IDs
   const [calendars, setCalendars] = useState([])
@@ -32,9 +33,11 @@ const CalendarApp = () => {
   const [endMinutes, setEndMinutes] = useState(0)
   const [eventColor, setEventColor] = useState("#00a3ff")
   const [editingEvent, setEditingEvent] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
 
 
+  //Test Comment
   // daysInMonth takes in current year, the future month, and the day just before
   // (the last day of the current month) to get the current months number of days
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
@@ -45,9 +48,11 @@ const CalendarApp = () => {
 
   //Fetch Calendars that the user is in
   useEffect(() => {
+    if (!userId) return
     const fetchCalendars = async () => {
       try {
-        const memberships = await getMembershipsByUser(USER_ID)
+        const memberships = await getMembershipsByUser(userId)
+
         const calendarDocs = await Promise.all(
           memberships.map(m => getCalendar(m.cal_id))
         )
@@ -63,7 +68,7 @@ const CalendarApp = () => {
       }
     }
     fetchCalendars()
-  }, [])
+  }, [userId])
 
   //Fetch events for the active calendar
   useEffect(() => {
@@ -116,6 +121,9 @@ const CalendarApp = () => {
   const handleAddEvent = async () => {
     if (!eventTitle.trim()) return
     if (!activeCalendarId) return
+    if (isSubmitting) return
+
+    setIsSubmitting(true) // Prevent multiple submissions
 
     const start = new Date(selectedDay)
     start.setHours(startHours, startMinutes)
@@ -125,7 +133,7 @@ const CalendarApp = () => {
 
     const newEvent = {
       cal_id: activeCalendarId,
-      created_by: USER_ID,
+      created_by: userId,
       title: eventTitle,
       description: "",
       start_time: Timestamp.fromDate(start),
@@ -156,6 +164,8 @@ const CalendarApp = () => {
       setEditingEvent(null)
     } catch (error) {
       console.error("Error saving event:", error)
+    } finally{
+      setIsSubmitting(false)
     }
   }
 
@@ -183,6 +193,14 @@ const CalendarApp = () => {
     } catch (error) {
       console.error("Error deleting event:", error)
     }
+  }
+
+  //Loading Guards
+  if (loading) {
+    return <div>Loading...</div>
+  }
+  if (!userLoggedIn) {
+    return <div>Please log in to view your calendar.</div>
   }
 
   return (
@@ -332,7 +350,7 @@ const CalendarApp = () => {
                     <input type="color" value={eventColor} onChange={(e) => setEventColor(e.target.value)} />
                 </div>
             {/* ── NEW: onClick wired to handleAddEvent ── */}
-            <button className="event-pop-btn" onClick={handleAddEvent}>
+            <button className="event-pop-btn" onClick={handleAddEvent} disabled={isSubmitting}>
               {editingEvent ? "Save Changes" : "Add Event"}
             </button>
             <button

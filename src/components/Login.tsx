@@ -1,9 +1,51 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { doSignInWithEmailAndPassword, doCreateUserWithEmailAndPassword } from "./firebase/auth"
+import { useAuth } from "./context/auth/index"
 
 function Login() {
     const navigate = useNavigate()
     const [isSignUp, setIsSignUp] = useState(false)
+    const { userLoggedIn } = useAuth()
+    const [email, setEmail]  = useState("")
+    const [password, setPassword] = useState("");
+    const [comfirmPassword, setComfirmPassword] = useState("");
+    const [error, setError] = useState("")
+
+    useEffect(() => {
+        if (userLoggedIn) {
+            navigate("/home")
+        }
+    }, [userLoggedIn, navigate])
+
+    const onSubmit = async () => {
+        setError("")
+    try {
+        if (isSignUp) {
+            if (password !== comfirmPassword) {
+                setError("Passwords do not match")
+                return
+            }
+            await doCreateUserWithEmailAndPassword(email, password)
+            navigate("/home")
+        } else {
+            await doSignInWithEmailAndPassword(email, password)
+            navigate("/home")
+        }
+    } catch (err: any) {
+        const code = err.code
+        if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
+            setError("Incorrect email or password")
+        } else if (code === "auth/invalid-email") {
+            setError("Invalid email address")
+        } else if (code === "auth/too-many-requests") {
+            setError("Too many attempts, please try again later")
+        } else {
+            setError("Something went wrong, please try again")
+        }
+    }
+}
+
 
     return (
         <>
@@ -162,22 +204,43 @@ function Login() {
                             className="login-input"
                             type="email"
                             placeholder="Email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                         />
                         <input
                             className="login-input"
                             type="password"
                             placeholder="Password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                         />
                         {isSignUp && (
                             <input
                                 className="login-input"
                                 type="password"
                                 placeholder="Confirm password"
+                                value={comfirmPassword}
+                                onChange={(e) => setComfirmPassword(e.target.value)}
                             />
                         )}
                     </div>
+                    
+                    {error && (
+                        <div style={{
+                            backgroundColor: "rgba(255, 80, 80, 0.1)",
+                            border: "1px solid rgba(255, 80, 80, 0.4)",
+                            borderRadius: "0.8rem",
+                            padding: "1rem 1.5rem",
+                            color: "#ff5050",
+                            fontFamily: "Inter, sans-serif",
+                            fontSize: "1.2rem",
+                            textAlign: "center",
+                        }}>
+                            {error}
+                        </div>
+                    )}
 
-                    <button className="login-btn" onClick={() => navigate("/")}>
+                    <button className="login-btn" onClick={() => onSubmit()}>
                         {isSignUp ? "Create Account" : "Sign In"}
                     </button>
 
