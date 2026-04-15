@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom"
 import { useState } from "react"
+import { useAuth } from "./context/auth/index"
+import { doSignOut } from "./firebase/auth"
 import homeIcon from "../assets/home.png"
 
 function NavBar() {
@@ -7,6 +9,9 @@ function NavBar() {
     const [showModal, setShowModal] = useState(false)
     const [showJoinInput, setShowJoinInput] = useState(false)
     const [joinCode, setJoinCode] = useState("")
+    const { currentUser } = useAuth()
+    const userInitial = currentUser?.email?.charAt(0).toUpperCase() ?? "Login"
+    const [showUserMenu, setShowUserMenu] = useState(false)
 
     const calendars = [
         { id: 1, name: "Calendar", color: "#00a3ff" },
@@ -287,28 +292,75 @@ function NavBar() {
                 </div>
 
                 {/* User Profile */}
-                <div
-                    title="Profile"
-                    onClick={() => navigate("/login")}
-                    style={{
-                        marginTop: "auto",
-                        marginBottom: "1rem",
-                        width: "3.8rem",
-                        height: "3.8rem",
-                        backgroundColor: "#2a2f3b",
-                        borderRadius: "50%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        fontSize: "1.8rem",
-                        color: "white",
-                        transition: "border-radius 0.2s ease",
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.borderRadius = "1.2rem")}
-                    onMouseLeave={e => (e.currentTarget.style.borderRadius = "50%")}
-                >
-                    Test
+                <div style={{ marginTop: "auto", marginBottom: "1rem", position: "relative" }}>
+                    <div
+                        title="Profile"
+                        onClick={() => setShowUserMenu(!showUserMenu)}
+                        style={{
+                            width: "3.8rem",
+                            height: "3.8rem",
+                            backgroundColor: "#2a2f3b",
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            fontSize: "1.5rem",
+                            fontWeight: "700",
+                            color: "white",
+                            fontFamily: "Inter, sans-serif",
+                            transition: "border-radius 0.2s ease",
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.borderRadius = "1.2rem")}
+                        onMouseLeave={e => (e.currentTarget.style.borderRadius = "50%")}
+                    >
+                        {userInitial}
+                    </div>
+                    {showUserMenu && currentUser && (
+                        <div style={{
+                            position: "absolute",
+                            left: "5rem",
+                            bottom: 0,
+                            backgroundColor: "#161b22",
+                            borderRadius: "0.8rem",
+                            padding: "0.5rem",
+                            boxShadow: "0 0.5rem 2rem rgba(0,0,0,0.4)",
+                            border: "1px solid #2a2f3b",
+                            whiteSpace: "nowrap",
+                            zIndex: 100,
+                        }}>
+                            <div style={{
+                                padding: "0.8rem 1.5rem",
+                                color: "#78879e",
+                                fontSize: "1.1rem",
+                                fontFamily: "Inter, sans-serif",
+                                borderBottom: "1px solid #2a2f3b",
+                                marginBottom: "0.3rem",
+                            }}>
+                                {currentUser.email}
+                            </div>
+                            <div
+                                onClick={async () => {
+                                    await doSignOut()
+                                    setShowUserMenu(false)
+                                    navigate("/")
+                                }}
+                                style={{
+                                    padding: "0.8rem 1.5rem",
+                                    color: "#ff5050",
+                                    fontSize: "1.2rem",
+                                    fontFamily: "Inter, sans-serif",
+                                    cursor: "pointer",
+                                    borderRadius: "0.5rem",
+                                    transition: "background-color 0.2s ease",
+                                }}
+                                onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#1e2426")}
+                                onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                                Sign Out
+                            </div>
+                        </div>
+                    )}
                 </div>
             </nav>
         </>

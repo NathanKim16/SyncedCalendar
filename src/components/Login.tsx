@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { doSignInWithEmailAndPassword, doCreateUserWithEmailAndPassword } from "./firebase/auth"
 import { useAuth } from "./context/auth/index"
@@ -12,6 +12,12 @@ function Login() {
     const [comfirmPassword, setComfirmPassword] = useState("");
     const [error, setError] = useState("")
 
+    useEffect(() => {
+        if (userLoggedIn) {
+            navigate("/home")
+        }
+    }, [userLoggedIn, navigate])
+
     const onSubmit = async () => {
         setError("")
     try {
@@ -21,10 +27,10 @@ function Login() {
                 return
             }
             await doCreateUserWithEmailAndPassword(email, password)
-            navigate("/")
+            navigate("/home")
         } else {
             await doSignInWithEmailAndPassword(email, password)
-            navigate("/")
+            navigate("/home")
         }
     } catch (err: any) {
         const code = err.code
