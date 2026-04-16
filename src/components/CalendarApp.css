@@ -371,7 +371,7 @@
     font-size: clamp(1.2rem, 1cqi, 1.4rem);
     line-height: 2rem;
     color: whitesmoke;
-    width: 75%;
+    width: 60%;
     padding: 0 3rem 0 1rem;
     overflow-wrap: break-word;
 }

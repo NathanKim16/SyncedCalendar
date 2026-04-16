@@ -396,8 +396,8 @@ useEffect(() => {
             </div>
             {/* ── NEW: Controlled textarea ── */}
             <textarea
-              placeholder="Enter Event Text (Maximum 60 Characters)"
-              maxLength={60}
+              placeholder="Enter Event Text (Maximum 40 Characters)"
+              maxLength={40}
               value={eventTitle}
               onChange={(e) => setEventTitle(e.target.value)}
             ></textarea>
@@ -494,8 +494,8 @@ useEffect(() => {
                 ) : (
                   <>
                     <textarea
-                      placeholder="Enter Rsvp Note (Max 60 Characters)"
-                      maxLength={60}
+                      placeholder="Enter Rsvp Note (Max 40 Characters)"
+                      maxLength={40}
                       value={rsvpNote}
                       onChange={(r) => setRsvpNote(r.target.value)}
                     ></textarea>
