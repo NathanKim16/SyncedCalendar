@@ -1,7 +1,10 @@
+import { useState, useEffect } from "react"
+import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent, getMembershipsByCalendar, getUser } from "../services/firestoreService"
 import { useState, useEffect, use } from "react"
 import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent, createRSVP, deleteRSVPByEventAndUser, getIsRSVPByEventAndUser, getRSVPsByUser, updateRSVP } from "../services/firestoreService"
 import { Timestamp } from "firebase/firestore"
 import { useAuth } from "./context/auth/index"
+import MembersIcon from "../assets/Members.png"
 
 const CalendarApp = () => {
   //Major variables
@@ -35,9 +38,12 @@ const CalendarApp = () => {
   const [eventColor, setEventColor] = useState("#00a3ff")
   const [editingEvent, setEditingEvent] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [members, setMembers] = useState([])
+  const [showMembersSidebar, setShowMembersSidebar] = useState(false)
   const [rsvpNote, setRsvpNote] = useState("")
   const [activeEventId, setActiveEventId] = useState(null)
 
+  const activeCalendar = calendars.find(cal => cal.id === activeCalendarId)
 
 
   //Test Comment
@@ -90,6 +96,42 @@ const CalendarApp = () => {
     fetchEvents()
   }, [activeCalendarId])
 
+  useEffect(() => {
+    if (!activeCalendarId) return
+    const fetchMembers = async () => {
+      try {
+        const memberships = await getMembershipsByCalendar(activeCalendarId)
+        const users = await Promise.all(memberships.map(async (membership) => {
+          if (membership.user_id === userId || membership.user_id === "QuaFv3JlIgSZvNhiX1BDeYUHL1e2") {
+            return null
+          }
+          const userDoc = await getUser(membership.user_id)
+          const userData = userDoc.exists() ? userDoc.data() : null
+          const email = userData?.email || membership.user_id || ""
+          return {
+            id: membership.id,
+            userId: membership.user_id,
+            displayName: userData?.username || "",
+            email,
+          }
+        }))
+
+        const seen = new Set()
+        const uniqueMembers = users.filter(Boolean).reduce((acc, member) => {
+          const key = member.userId || member.email
+          if (!key || seen.has(key)) return acc
+          seen.add(key)
+          acc.push(member)
+          return acc
+        }, [])
+
+        setMembers(uniqueMembers)
+      } catch (error) {
+        console.error("Error fetching members:", error)
+      }
+    }
+    fetchMembers()
+  }, [activeCalendarId, currentUser?.email, userId])
 const [userRsvps, setUserRsvps] = useState([]);
 
 useEffect(() => {
@@ -261,6 +303,28 @@ useEffect(() => {
 
   return (
     <div className="calendar-app">
+        <button
+          onClick={() => setShowMembersSidebar(!showMembersSidebar)}
+          style={{
+            position: "fixed",
+            top: "1rem",
+            right: "1rem",
+            width: "3.6rem",
+            height: "3.6rem",
+            borderRadius: "50%",
+            border: "1px solid #2a2f3b",
+            backgroundColor: "#2a2f3b",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 0.5rem 1rem rgba(0,0,0,0.25)",
+            zIndex: 999,
+          }}
+          title={showMembersSidebar ? "Hide members" : "Show members"}
+        >
+          <img src={MembersIcon} alt="Members" style={{ width: "1.8rem", height: "1.8rem" }} />
+        </button>
         <div className="sidebar">
           {calendars.map(cal => (
             <div
@@ -276,8 +340,8 @@ useEffect(() => {
             </div>
           ))}
         </div>
-        <div className="calendar">
-            <h1 className="heading">Test Calendar</h1>
+        <div className="calendar" style={{ position: "relative" }}>
+            <h1 className="heading">{activeCalendar?.name || "Calendar"}</h1>
             <div className="navigate-date">
                 <h2 className="month">{monthsOfYear[currentMonth]},</h2>
                 <h2 className="year">{currentYear}</h2>
@@ -422,6 +486,62 @@ useEffect(() => {
           </div>
         )}
       </div>
+
+      {showMembersSidebar && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          right: 0,
+          width: "24rem",
+          maxWidth: "90vw",
+          height: "100vh",
+          backgroundColor: "#161b22",
+          borderLeft: "1px solid #2a2f3b",
+          padding: "1.5rem",
+          boxShadow: "-0.5rem 0 2rem rgba(0,0,0,0.4)",
+          zIndex: 500,
+          overflowY: "auto",
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <div>
+              <div style={{ color: "#ffffff", fontSize: "1.25rem", fontWeight: 700 }}>Calendar Members</div>
+              <div style={{ color: "#78879e", fontSize: "0.95rem" }}>{members.length + 1} member{members.length + 1 === 1 ? "" : "s"}</div>
+            </div>
+            <button
+              onClick={() => setShowMembersSidebar(false)}
+              style={{
+                width: "2.8rem",
+                height: "2.8rem",
+                borderRadius: "50%",
+                border: "none",
+                backgroundColor: "#2a2f3b",
+                color: "white",
+                cursor: "pointer",
+                fontSize: "1.2rem",
+              }}
+              title="Close members"
+            >
+              ×
+            </button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <div style={{ padding: "1rem", backgroundColor: "#0f1319", borderRadius: "1rem", border: "1px solid #2a2f3b" }}>
+              <div style={{ color: "#ffffff", fontWeight: 700 }}>{currentUser?.displayName || currentUser?.email || "You"}</div>
+              <div style={{ color: "#78879e", fontSize: "0.9rem", marginTop: "0.35rem" }}>You</div>
+            </div>
+            {members.length === 0 ? (
+              <div style={{ color: "#78879e", padding: "1rem", backgroundColor: "#0f1319", borderRadius: "0.9rem" }}>
+                No other members found for this calendar.
+              </div>
+            ) : members.map((member) => (
+              <div key={member.id} style={{ padding: "1rem", backgroundColor: "#0f1319", borderRadius: "1rem", border: "1px solid #2a2f3b" }}>
+                <div style={{ color: "#ffffff", fontWeight: 700 }}>{member.displayName || member.email || "Unknown"}</div>
+                <div style={{ color: "#78879e", fontSize: "0.9rem", marginTop: "0.35rem" }}>{member.email}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── NEW: Dynamic event list from Firestore ── */}
       <div className="events">
