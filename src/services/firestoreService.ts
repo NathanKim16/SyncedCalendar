@@ -1,7 +1,7 @@
 import { db } from "../firebase";
 import {
   collection, addDoc, getDocs, getDoc,
-  doc, updateDoc, deleteDoc, query, where,
+  setDoc, doc, updateDoc, deleteDoc, query, where,
   Timestamp
 } from "firebase/firestore";
 
@@ -71,6 +71,9 @@ export const getUser = async (id: string) =>
 
 export const updateUser = async (id: string, data: Partial<User>) =>
   await updateDoc(doc(db, "users", id), data);
+
+export const setUser = async (id: string, data: Partial<User>) =>
+  await setDoc(doc(db, "users", id), data, { merge: true });
 
 export const deleteUser = async (id: string) =>
   await deleteDoc(doc(db, "users", id));
