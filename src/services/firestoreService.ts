@@ -170,6 +170,22 @@ export const updateRSVP = async (id: string, data: Partial<RSVP>) =>
 export const deleteRSVP = async (id: string) =>
   await deleteDoc(doc(db, "rsvps", id));
 
+export const getIsRSVPByEventAndUser = async (event_id: string, user_id: string) => {
+  const q = query(collection(db, "rsvps"), where("event_id", "==", event_id), where("user_id", "==", user_id));
+  const snapshot = await getDocs(q);
+  return snapshot.empty ? false : true;
+};
+
+export const deleteRSVPByEventAndUser = async (event_id: string, user_id: string) => {
+  const q = query(collection(db, "rsvps"), where("event_id", "==", event_id), where("user_id", "==", user_id));
+  const snapshot = await getDocs(q);
+  if (!snapshot.empty) {
+    const doc = snapshot.docs[0];
+    await deleteDoc(doc.ref);
+  }
+};
+
+
 // ─── AVAILABILITIES ──────────────────────────────────────
 
 export const createAvailability = async (data: Availability) =>

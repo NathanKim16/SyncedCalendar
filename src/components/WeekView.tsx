@@ -1,4 +1,6 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { getRSVPsByUser, getEvent } from "../services/firestoreService"
+import { useAuth } from "./context/auth/index"
 import { useNavigate } from "react-router-dom"
 
 interface Event {
@@ -9,22 +11,14 @@ interface Event {
     endTime: string
     color: string
     calendarName: string
+    rsvpNote: string
 }
-
-
-const SAMPLE_EVENTS: Event[] = [
-    { id: 1, title: "Meeting with John", date: new Date(2026, 3, 5), startTime: "9:00", endTime: "10:00", color: "#00a3ff", calendarName: "Test Calendar" },
-    { id: 2, title: "Lunch with Sarah", date: new Date(2026, 3, 6), startTime: "12:30", endTime: "13:30", color: "#ff5722", calendarName: "Test Calendar" },
-    { id: 3, title: "Project Deadline", date: new Date(2026, 3, 7), startTime: "17:00", endTime: "17:30", color: "#4caf50", calendarName: "Test Calendar" },
-    { id: 4, title: "Gym Session", date: new Date(2026, 3, 8), startTime: "18:00", endTime: "19:00", color: "#9c27b0", calendarName: "Test Calendar" },
-    { id: 5, title: "Dinner with Family", date: new Date(2026, 3, 9), startTime: "20:00", endTime: "21:30", color: "#ff9800", calendarName: "Test Calendar" },
-]
-
 
 const WeekView = () => {
     const navigate = useNavigate()
     // Intial events need api call to fetch events for the current week
     const [thisWeekEvents, setThisWeekEvents] = useState<Event[]>([])
+
     const [currentWeekStart, setCurrentWeekStart] = useState(() => {
         const today = new Date()
         const day = today.getDay()
@@ -34,15 +28,60 @@ const WeekView = () => {
         return start
     })
 
+    const {currentUser} = useAuth()
+    const userId = currentUser?.uid
+    const [userRsvps, setUserRsvps] = useState<any[]>([])
     
+    useEffect(() => {
+    const fetchRSVPs = async () => {
+        const data = await getRSVPsByUser(userId);
+        setUserRsvps(data);
+    };
+    if (userId) {
+        fetchRSVPs();
+    }}, [userId]);
 
-    const pullFromServer = () => {
-        const startDate = new Date(currentWeekStart)
-        const endDate = new Date(currentWeekStart)
-        endDate.setDate(endDate.getDate() + 6)
-        //  API call to fetch events for the week
-        setThisWeekEvents(SAMPLE_EVENTS)
-    }
+    const filterEventsForWeek = async () => {
+        const startOfWeek = new Date(currentWeekStart);
+        const endOfWeek = new Date(currentWeekStart);
+        endOfWeek.setDate(endOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        const rsvpedEventIds = userRsvps.map(rsvp => rsvp.event_id);
+        const rsvpedEvents = await Promise.all(rsvpedEventIds.map((id: string) => getEvent(id)));
+
+        const filteredEvents = rsvpedEvents.map((r: any) => {
+            if (!r || !r.exists()) return null;
+
+            const eventData = r.data();
+            const startJSDate = eventData.start_time.toDate();
+            const endJSDate = eventData.end_time.toDate();
+            const RSVPsNote = userRsvps.find(rsvp => rsvp.event_id === r.id)?.note || "";
+
+            return {
+                id: r.id, 
+                title: eventData.title,
+                date: startJSDate,
+                startTime: startJSDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                endTime: endJSDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                color: eventData.color,
+                calendarName: eventData.calendarName,
+                rsvpNote: RSVPsNote
+            };
+        }).filter((e): e is Event => 
+            e !== null && e.date >= startOfWeek && e.date <= endOfWeek
+        );setThisWeekEvents(filteredEvents);
+    };
+
+    useEffect(() => {
+        if (userRsvps.length > 0) {
+            filterEventsForWeek();
+        }
+        else {
+            setThisWeekEvents([]);
+        }
+    }, [currentWeekStart, userRsvps])
+
     const weekDays = Array.from({ length: 7 }, (_, i) => {
         const d = new Date(currentWeekStart)
         d.setDate(currentWeekStart.getDate() + i)
@@ -53,14 +92,14 @@ const WeekView = () => {
         const prev = new Date(currentWeekStart)
         prev.setDate(prev.getDate() - 7)
         setCurrentWeekStart(prev)
-        pullFromServer()
+        
     }
 
     const goToNextWeek = () => {
         const next = new Date(currentWeekStart)
         next.setDate(next.getDate() + 7)
         setCurrentWeekStart(next)
-        pullFromServer()
+        
     }
 
     const getEventsForDay = (day: Date) =>
