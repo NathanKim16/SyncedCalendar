@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react"
-import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent } from "../services/firestoreService"
+import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent, getMembershipsByCalendar, getUser, createRSVP, deleteRSVPByEventAndUser, getIsRSVPByEventAndUser, getRSVPsByUser, updateRSVP } from "../services/firestoreService"
 import { Timestamp } from "firebase/firestore"
 import { useAuth } from "./context/auth/index"
+import MembersIcon from "../assets/Members.png"
 
 const CalendarApp = () => {
   //Major variables
@@ -23,6 +24,7 @@ const CalendarApp = () => {
 
   const [selectedDay, setSelectedDay] = useState(currentDate)
   const [showEventPopup, setShowEventPopup] = useState(false)
+  const [showRsvpPopup, setShowRsvpPopup] = useState(false)
 
   // ── NEW: Event state ──────────────────────────────────────
   const [events, setEvents] = useState([])
@@ -34,7 +36,12 @@ const CalendarApp = () => {
   const [eventColor, setEventColor] = useState("#00a3ff")
   const [editingEvent, setEditingEvent] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [members, setMembers] = useState([])
+  const [showMembersSidebar, setShowMembersSidebar] = useState(false)
+  const [rsvpNote, setRsvpNote] = useState("")
+  const [activeEventId, setActiveEventId] = useState(null)
 
+  const activeCalendar = calendars.find(cal => cal.id === activeCalendarId)
 
 
   //Test Comment
@@ -86,6 +93,54 @@ const CalendarApp = () => {
     }
     fetchEvents()
   }, [activeCalendarId])
+
+  useEffect(() => {
+    if (!activeCalendarId) return
+    const fetchMembers = async () => {
+      try {
+        const memberships = await getMembershipsByCalendar(activeCalendarId)
+        const users = await Promise.all(memberships.map(async (membership) => {
+          if (membership.user_id === userId || membership.user_id === "QuaFv3JlIgSZvNhiX1BDeYUHL1e2") {
+            return null
+          }
+          const userDoc = await getUser(membership.user_id)
+          const userData = userDoc.exists() ? userDoc.data() : null
+          const email = userData?.email || membership.user_id || ""
+          return {
+            id: membership.id,
+            userId: membership.user_id,
+            displayName: userData?.username || "",
+            email,
+          }
+        }))
+
+        const seen = new Set()
+        const uniqueMembers = users.filter(Boolean).reduce((acc, member) => {
+          const key = member.userId || member.email
+          if (!key || seen.has(key)) return acc
+          seen.add(key)
+          acc.push(member)
+          return acc
+        }, [])
+
+        setMembers(uniqueMembers)
+      } catch (error) {
+        console.error("Error fetching members:", error)
+      }
+    }
+    fetchMembers()
+  }, [activeCalendarId, currentUser?.email, userId])
+const [userRsvps, setUserRsvps] = useState([]);
+
+useEffect(() => {
+  const fetchRSVPs = async () => {
+    const data = await getRSVPsByUser(userId);
+    setUserRsvps(data);
+  };
+  if (userId) {
+    fetchRSVPs();
+  }
+}, [userId]);
 
   const goToPrevMonth = () => {
     setCurrentMonth((prevMonth) => (prevMonth === 0 ? 11 : prevMonth - 1))
@@ -190,6 +245,10 @@ const CalendarApp = () => {
       const updated = await getEventsByCalendar(activeCalendarId)
       updated.sort((a, b) => a.start_time.toDate() - b.start_time.toDate())
       setEvents(updated)
+      if (hasUserRsvp(id)) {
+        await deleteRSVPByEventAndUser(id, userId)
+        setUserRsvps(prev => prev.filter(rsvp => rsvp.event_id !== id))
+      }
     } catch (error) {
       console.error("Error deleting event:", error)
     }
@@ -203,8 +262,67 @@ const CalendarApp = () => {
     return <div>Please log in to view your calendar.</div>
   }
 
+  const hasUserRsvp = (eventId) => {
+    return userRsvps.some(rsvp => rsvp.event_id === eventId);
+  };
+
+  const handleRsvpClick = (event, userId) => {
+    const isRsvp = hasUserRsvp(event.id);
+
+    if (isRsvp) {
+      deleteRSVPByEventAndUser(event.id, userId)
+      setUserRsvps(prev => prev.filter(rsvp => rsvp.event_id !== event.id))
+
+    }
+    else {
+      const newRsvp = {
+        event_id: event.id,
+        user_id: userId,
+        note: rsvpNote,
+        timestamp: Timestamp.now(),
+      }
+
+      const docRef = createRSVP(newRsvp)
+      setUserRsvps(prev => [...prev, { ...newRsvp, id: docRef.id }])
+    }
+
+    setActiveEventId(null)
+    setShowRsvpPopup(false)
+  }
+  const handleNoteUpdate = async (eventId) => {
+    const existingRsvp = userRsvps.find(rsvp => rsvp.event_id === eventId);
+    if (existingRsvp) {
+      await updateRSVP(existingRsvp.id, { note: rsvpNote });
+      setUserRsvps(prev => prev.map(rsvp => rsvp.id === existingRsvp.id ? { ...rsvp, note: rsvpNote } : rsvp));
+    }
+    setShowRsvpPopup(false)
+    setActiveEventId(null)
+  }
+
   return (
     <div className="calendar-app">
+        <button
+          onClick={() => setShowMembersSidebar(!showMembersSidebar)}
+          style={{
+            position: "fixed",
+            top: "1rem",
+            right: "1rem",
+            width: "3.6rem",
+            height: "3.6rem",
+            borderRadius: "50%",
+            border: "1px solid #2a2f3b",
+            backgroundColor: "#2a2f3b",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 0.5rem 1rem rgba(0,0,0,0.25)",
+            zIndex: 999,
+          }}
+          title={showMembersSidebar ? "Hide members" : "Show members"}
+        >
+          <img src={MembersIcon} alt="Members" style={{ width: "1.8rem", height: "1.8rem" }} />
+        </button>
         <div className="sidebar">
           {calendars.map(cal => (
             <div
@@ -220,8 +338,8 @@ const CalendarApp = () => {
             </div>
           ))}
         </div>
-        <div className="calendar">
-            <h1 className="heading">Test Calendar</h1>
+        <div className="calendar" style={{ position: "relative" }}>
+            <h1 className="heading">{activeCalendar?.name || "Calendar"}</h1>
             <div className="navigate-date">
                 <h2 className="month">{monthsOfYear[currentMonth]},</h2>
                 <h2 className="year">{currentYear}</h2>
@@ -340,8 +458,8 @@ const CalendarApp = () => {
             </div>
             {/* ── NEW: Controlled textarea ── */}
             <textarea
-              placeholder="Enter Event Text (Maximum 60 Characters)"
-              maxLength={60}
+              placeholder="Enter Event Text (Maximum 40 Characters)"
+              maxLength={40}
               value={eventTitle}
               onChange={(e) => setEventTitle(e.target.value)}
             ></textarea>
@@ -367,10 +485,66 @@ const CalendarApp = () => {
         )}
       </div>
 
+      {showMembersSidebar && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          right: 0,
+          width: "24rem",
+          maxWidth: "90vw",
+          height: "100vh",
+          backgroundColor: "#161b22",
+          borderLeft: "1px solid #2a2f3b",
+          padding: "1.5rem",
+          boxShadow: "-0.5rem 0 2rem rgba(0,0,0,0.4)",
+          zIndex: 500,
+          overflowY: "auto",
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <div>
+              <div style={{ color: "#ffffff", fontSize: "1.25rem", fontWeight: 700 }}>Calendar Members</div>
+              <div style={{ color: "#78879e", fontSize: "0.95rem" }}>{members.length + 1} member{members.length + 1 === 1 ? "" : "s"}</div>
+            </div>
+            <button
+              onClick={() => setShowMembersSidebar(false)}
+              style={{
+                width: "2.8rem",
+                height: "2.8rem",
+                borderRadius: "50%",
+                border: "none",
+                backgroundColor: "#2a2f3b",
+                color: "white",
+                cursor: "pointer",
+                fontSize: "1.2rem",
+              }}
+              title="Close members"
+            >
+              ×
+            </button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <div style={{ padding: "1rem", backgroundColor: "#0f1319", borderRadius: "1rem", border: "1px solid #2a2f3b" }}>
+              <div style={{ color: "#ffffff", fontWeight: 700 }}>{currentUser?.displayName || currentUser?.email || "You"}</div>
+              <div style={{ color: "#78879e", fontSize: "0.9rem", marginTop: "0.35rem" }}>You</div>
+            </div>
+            {members.length === 0 ? (
+              <div style={{ color: "#78879e", padding: "1rem", backgroundColor: "#0f1319", borderRadius: "0.9rem" }}>
+                No other members found for this calendar.
+              </div>
+            ) : members.map((member) => (
+              <div key={member.id} style={{ padding: "1rem", backgroundColor: "#0f1319", borderRadius: "1rem", border: "1px solid #2a2f3b" }}>
+                <div style={{ color: "#ffffff", fontWeight: 700 }}>{member.displayName || member.email || "Unknown"}</div>
+                <div style={{ color: "#78879e", fontSize: "0.9rem", marginTop: "0.35rem" }}>{member.email}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── NEW: Dynamic event list from Firestore ── */}
       <div className="events">
         {events.map((event) => (
-          <div className="event" key={event.id} style={{backgroundColor: event.color}}>
+          <div className={`event ${activeEventId === event.id ? 'is-active' : ''}`} key={event.id} style={{backgroundColor: event.color}}>
             <div className="event-date-wrapper">
               <div className="event-date">
                 {event.start_time.toDate().toLocaleDateString("en-US", {
@@ -396,6 +570,14 @@ const CalendarApp = () => {
               </div>
             </div>
             <div className="event-text">{event.title}</div>
+            <div className="rsvp-button">
+              <i className={`bx ${hasUserRsvp(event.id) ? 'bxs-calendar-check' : 'bx-calendar-check'}`} onClick={() => { if(hasUserRsvp(event.id)){
+                const existingRsvp = userRsvps.find(rsvp => rsvp.event_id === event.id);
+                setRsvpNote(existingRsvp ? existingRsvp.note : "")
+              }else{
+                setRsvpNote("")
+              } setActiveEventId(event.id)}}></i>
+            </div>
             <div className="event-button">
               <i className="bx bxs-edit-alt" onClick={() => handleEditEvent(event)}></i>
               {/* ── NEW: Delete wired to handleDeleteEvent ── */}
@@ -404,8 +586,55 @@ const CalendarApp = () => {
                 onClick={() => handleDeleteEvent(event.id)}
               ></i>
             </div>
+            {activeEventId === event.id && (
+              
+              <div className="rsvp-popup">
+                {hasUserRsvp(event.id) ? (
+                  <>   
+
+                    <textarea 
+                      value={rsvpNote} 
+                      onChange={(e) => setRsvpNote(e.target.value)} 
+                    />
+
+                    <button className="rsvp-delete-btn" onClick={() => handleRsvpClick(event, userId)}>
+                      Delete RSVP
+                    </button>
+
+                    <button className="rsvp-update-btn" onClick={() => handleNoteUpdate(event.id)}>
+                      Update Note
+                    </button>
+
+                    <button className="close-event-popup" onClick={() => {setShowRsvpPopup(false); setActiveEventId(null)}}>
+                      <i className="bx bx-x"></i>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <textarea
+                      placeholder="Enter Rsvp Note (Max 40 Characters)"
+                      maxLength={40}
+                      value={rsvpNote}
+                      onChange={(r) => setRsvpNote(r.target.value)}
+                    ></textarea>
+                    
+                    <button className="rsvp-pop-btn" onClick={() => handleRsvpClick(event, userId)}>
+                      Submit RSVP
+                    </button>
+                    
+                    <button className="close-event-popup" onClick={() => {setShowRsvpPopup(false); setActiveEventId(null)}}>
+                      <i className="bx bx-x"></i>
+                    </button>
+                  </>
+                )}
+
+              </div>
+            )}
           </div>
+          
         ))}
+
+        
       </div>
     </div>
   )
