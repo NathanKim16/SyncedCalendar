@@ -22,7 +22,7 @@ export function AuthProvider({ children }){
     async function initializeUser(user){
         //user logged in
         if(user){
-            setCurrentUser({ ...user });
+            setCurrentUser(user);
             setUserLoggedIn(true);
         }
         //user logged out
@@ -36,7 +36,8 @@ export function AuthProvider({ children }){
     const value = {
         currentUser,
         userLoggedIn,
-        loading
+        loading,
+        setCurrentUser
     }
 
     return (
