@@ -1,5 +1,10 @@
 import { useNavigate } from "react-router-dom"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useAuth } from "./context/auth/index"
+import { doSignOut } from "./firebase/auth"
+import { updateProfile } from "firebase/auth"
+import { auth } from "../firebase"
+import { setUser } from "../services/firestoreService"
 import homeIcon from "../assets/home.png"
 
 function NavBar() {
@@ -7,6 +12,17 @@ function NavBar() {
     const [showModal, setShowModal] = useState(false)
     const [showJoinInput, setShowJoinInput] = useState(false)
     const [joinCode, setJoinCode] = useState("")
+    const [displayNameInput, setDisplayNameInput] = useState("")
+    const [displayNameError, setDisplayNameError] = useState("")
+    const [savingDisplayName, setSavingDisplayName] = useState(false)
+    const { currentUser, setCurrentUser } = useAuth()
+    const userInitial = ((currentUser?.displayName?.trim()?.charAt(0).toUpperCase() || currentUser?.email?.charAt(0).toUpperCase()) ?? "Login")
+    const [showUserMenu, setShowUserMenu] = useState(false)
+
+    useEffect(() => {
+        setDisplayNameInput(currentUser?.displayName ?? "")
+        setDisplayNameError("")
+    }, [currentUser?.displayName])
 
     const calendars = [
         { id: 1, name: "Calendar", color: "#00a3ff" },
@@ -287,28 +303,173 @@ function NavBar() {
                 </div>
 
                 {/* User Profile */}
-                <div
-                    title="Profile"
-                    onClick={() => navigate("/login")}
-                    style={{
-                        marginTop: "auto",
-                        marginBottom: "1rem",
-                        width: "3.8rem",
-                        height: "3.8rem",
-                        backgroundColor: "#2a2f3b",
-                        borderRadius: "50%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        fontSize: "1.8rem",
-                        color: "white",
-                        transition: "border-radius 0.2s ease",
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.borderRadius = "1.2rem")}
-                    onMouseLeave={e => (e.currentTarget.style.borderRadius = "50%")}
-                >
-                    Test
+                <div style={{ marginTop: "auto", marginBottom: "1rem", position: "relative" }}>
+                    <div
+                        title="Profile"
+                        onClick={() => setShowUserMenu(!showUserMenu)}
+                        style={{
+                            width: "3.8rem",
+                            height: "3.8rem",
+                            backgroundColor: "#2a2f3b",
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            fontSize: "1.5rem",
+                            fontWeight: "700",
+                            color: "white",
+                            fontFamily: "Inter, sans-serif",
+                            transition: "border-radius 0.2s ease",
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.borderRadius = "1.2rem")}
+                        onMouseLeave={e => (e.currentTarget.style.borderRadius = "50%")}
+                    >
+                        {userInitial}
+                    </div>
+                    {showUserMenu && currentUser && (
+                        <div style={{
+                            position: "absolute",
+                            left: "5rem",
+                            bottom: 0,
+                            backgroundColor: "#161b22",
+                            borderRadius: "0.8rem",
+                            padding: "0.5rem",
+                            boxShadow: "0 0.5rem 2rem rgba(0,0,0,0.4)",
+                            border: "1px solid #2a2f3b",
+                            whiteSpace: "nowrap",
+                            zIndex: 100,
+                        }}>
+                            <div style={{
+                                padding: "0.8rem 1.5rem",
+                                color: "#ffffff",
+                                fontSize: "1.1rem",
+                                fontFamily: "Inter, sans-serif",
+                                borderBottom: "1px solid #2a2f3b",
+                                marginBottom: "0.6rem",
+                            }}>
+                                {currentUser.displayName ? `Display name: ${currentUser.displayName}` : "No display name set"}
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", padding: "0 1.5rem 0.5rem" }}>
+                                <div style={{ position: "relative", width: "18rem" }}>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter display name"
+                                        value={displayNameInput}
+                                        maxLength={16}
+                                        onChange={e => setDisplayNameInput(e.target.value.replace(/\s+/g, ""))}
+                                        onKeyDown={e => { if (/\s/.test(e.key)) e.preventDefault() }}
+                                        onPaste={e => {
+                                            e.preventDefault();
+                                            const pasted = e.clipboardData.getData("text").replace(/\s+/g, "").slice(0, 16);
+                                            setDisplayNameInput(pasted);
+                                        }}
+                                        style={{
+                                            backgroundColor: "#0f1319",
+                                            border: "1px solid #2a2f3b",
+                                            borderRadius: "0.8rem",
+                                            padding: "0.9rem 5.5rem 0.9rem 1rem",
+                                            color: "white",
+                                            fontSize: "1rem",
+                                            fontFamily: "Inter, sans-serif",
+                                            outline: "none",
+                                            width: "100%",
+                                            boxSizing: "border-box" as const,
+                                        }}
+                                    />
+                                    <button
+                                        onClick={async () => {
+                                            const trimmed = displayNameInput.trim();
+                                            if (!trimmed) {
+                                                setDisplayNameError("Display name cannot be empty.");
+                                                return;
+                                            }
+                                            if (trimmed.length > 16) {
+                                                setDisplayNameError("Display name must be 16 characters or less.");
+                                                return;
+                                            }
+                                            if (!currentUser) return;
+                                            if (trimmed === currentUser.displayName) {
+                                                setShowUserMenu(false);
+                                                return;
+                                            }
+                                            setSavingDisplayName(true);
+                                            try {
+                                                        await updateProfile(auth.currentUser ?? currentUser, { displayName: trimmed });
+                                                if (currentUser.uid) {
+                                                    await setUser(currentUser.uid, {
+                                                        username: trimmed,
+                                                        email: currentUser.email || "",
+                                                    });
+                                                }
+                                                setCurrentUser({ ...currentUser, displayName: trimmed });
+                                                setDisplayNameError("");
+                                                setShowUserMenu(false);
+                                            } catch (error) {
+                                                console.error(error);
+                                                setDisplayNameError("Could not update display name.");
+                                            } finally {
+                                                setSavingDisplayName(false);
+                                            }
+                                        }}
+                                        disabled={savingDisplayName || displayNameInput.trim().length === 0}
+                                        style={{
+                                            position: "absolute",
+                                            right: "0.2rem",
+                                            top: "0.2rem",
+                                            bottom: "0.2rem",
+                                            padding: "0 1rem",
+                                            backgroundColor: "transparent",
+                                            border: "none",
+                                            color: "white",
+                                            fontSize: "1rem",
+                                            fontFamily: "Inter, sans-serif",
+                                            cursor: savingDisplayName ? "not-allowed" : "pointer",
+                                            fontWeight: "600",
+                                            borderRadius: "0.6rem",
+                                        }}
+                                    >
+                                        {savingDisplayName ? "Saving..." : "Set"}
+                                    </button>
+                                </div>
+                                {displayNameError && (
+                                    <div style={{ color: "#ff7f7f", fontSize: "0.95rem", fontFamily: "Inter, sans-serif" }}>
+                                        {displayNameError}
+                                    </div>
+                                )}
+                            </div>
+                            <div style={{
+                                padding: "0.8rem 1.5rem",
+                                color: "#78879e",
+                                fontSize: "1.1rem",
+                                fontFamily: "Inter, sans-serif",
+                                borderTop: "1px solid #2a2f3b",
+                                marginTop: "0.5rem",
+                            }}>
+                                {currentUser.email}
+                            </div>
+                            <div
+                                onClick={async () => {
+                                    await doSignOut()
+                                    setShowUserMenu(false)
+                                    navigate("/")
+                                }}
+                                style={{
+                                    padding: "0.8rem 1.5rem",
+                                    color: "#ff5050",
+                                    fontSize: "1.2rem",
+                                    fontFamily: "Inter, sans-serif",
+                                    cursor: "pointer",
+                                    borderRadius: "0.5rem",
+                                    transition: "background-color 0.2s ease",
+                                }}
+                                onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#1e2426")}
+                                onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                                Sign Out
+                            </div>
+                        </div>
+                    )}
                 </div>
             </nav>
         </>

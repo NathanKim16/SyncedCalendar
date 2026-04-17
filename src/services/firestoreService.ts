@@ -1,7 +1,7 @@
 import { db } from "../firebase";
 import {
   collection, addDoc, getDocs, getDoc,
-  doc, updateDoc, deleteDoc, query, where,
+  setDoc, doc, updateDoc, deleteDoc, query, where,
   Timestamp
 } from "firebase/firestore";
 
@@ -71,6 +71,9 @@ export const getUser = async (id: string) =>
 
 export const updateUser = async (id: string, data: Partial<User>) =>
   await updateDoc(doc(db, "users", id), data);
+
+export const setUser = async (id: string, data: Partial<User>) =>
+  await setDoc(doc(db, "users", id), data, { merge: true });
 
 export const deleteUser = async (id: string) =>
   await deleteDoc(doc(db, "users", id));
@@ -166,6 +169,22 @@ export const updateRSVP = async (id: string, data: Partial<RSVP>) =>
 
 export const deleteRSVP = async (id: string) =>
   await deleteDoc(doc(db, "rsvps", id));
+
+export const getIsRSVPByEventAndUser = async (event_id: string, user_id: string) => {
+  const q = query(collection(db, "rsvps"), where("event_id", "==", event_id), where("user_id", "==", user_id));
+  const snapshot = await getDocs(q);
+  return snapshot.empty ? false : true;
+};
+
+export const deleteRSVPByEventAndUser = async (event_id: string, user_id: string) => {
+  const q = query(collection(db, "rsvps"), where("event_id", "==", event_id), where("user_id", "==", user_id));
+  const snapshot = await getDocs(q);
+  if (!snapshot.empty) {
+    const doc = snapshot.docs[0];
+    await deleteDoc(doc.ref);
+  }
+};
+
 
 // ─── AVAILABILITIES ──────────────────────────────────────
 
