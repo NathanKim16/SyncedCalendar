@@ -103,23 +103,38 @@ export const deleteCalendar = async (id: string) =>
 export const createMembership = async (data: Membership) =>
   await addDoc(collection(db, "memberships"), data);
 
-export const getMembershipsByUser = async (user_id: string) => {
+export const getMembershipsByUser = async (user_id: string): Promise<(Membership & { id: string })[]> => {
   const q = query(collection(db, "memberships"), where("user_id", "==", user_id));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as Membership }));
 };
 
-export const getMembershipsByCalendar = async (cal_id: string) => {
-  const q = query(collection(db, "memberships"), where("cal_id", "==", cal_id)); // updated
+export const getMembershipsByCalendar = async (cal_id: string): Promise<(Membership & { id: string })[]> => {
+  const q = query(collection(db, "memberships"), where("cal_id", "==", cal_id));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as Membership }));
 };
 
 export const updateMembership = async (id: string, data: Partial<Membership>) =>
   await updateDoc(doc(db, "memberships", id), data);
 
-export const deleteMembership = async (id: string) =>
-  await deleteDoc(doc(db, "memberships", id));
+export const getMembershipByUserAndCalendar = async (user_id: string, cal_id: string): Promise<(Membership & { id: string }) | null> => {
+  const q = query(collection(db, "memberships"), where("user_id", "==", user_id), where("cal_id", "==", cal_id));
+  const snapshot = await getDocs(q);
+  return snapshot.empty ? null : { id: snapshot.docs[0].id, ...snapshot.docs[0].data() as Membership };
+};
+
+export const deleteEventsByCalendar = async (cal_id: string) => {
+  const q = query(collection(db, "events"), where("cal_id", "==", cal_id));
+  const snapshot = await getDocs(q);
+  await Promise.all(snapshot.docs.map(doc => deleteDoc(doc.ref)));
+};
+
+export const deleteMembershipsByCalendar = async (cal_id: string) => {
+  const q = query(collection(db, "memberships"), where("cal_id", "==", cal_id));
+  const snapshot = await getDocs(q);
+  await Promise.all(snapshot.docs.map(doc => deleteDoc(doc.ref)));
+};
 
 // ─── EVENTS ──────────────────────────────────────────────
 
