@@ -2,7 +2,8 @@ import { db } from "../firebase";
 import {
   collection, addDoc, getDocs, getDoc,
   setDoc, doc, updateDoc, deleteDoc, query, where,
-  Timestamp
+  Timestamp,
+  writeBatch, increment
 } from "firebase/firestore";
 
 // ─── TYPES ───────────────────────────────────────────────
@@ -42,6 +43,7 @@ interface Event {
   location: string;
   rsvp_deadline: string;
   color: string;
+  numberOfRSVPs: number;
 }
 
 interface RSVP {
@@ -165,6 +167,12 @@ export const updateEvent = async (id: string, data: Partial<Event>) =>
 export const deleteEvent = async (id: string) =>
   await deleteDoc(doc(db, "events", id));
 
+export const incrementRSVPCount = async (id: string, amount: number) => {
+  const eventRef = doc(db, "events", id);
+  await updateDoc(eventRef, { numberOfRSVPs: increment(amount) });
+};
+
+
 // ─── RSVPS ───────────────────────────────────────────────
 
 export const createRSVP = async (data: RSVP) =>
@@ -187,6 +195,16 @@ export const updateRSVP = async (id: string, data: Partial<RSVP>) =>
 
 export const deleteRSVP = async (id: string) =>
   await deleteDoc(doc(db, "rsvps", id));
+
+export const deleteRSVPsByEventID = async (event_id: string) => {
+  const q = query(collection(db, "rsvps"), where("event_id", "==", event_id));
+  const snapshot = await getDocs(q);
+  const batch = writeBatch(db);
+  snapshot.docs.forEach((doc) => {
+    batch.delete(doc.ref);
+  });
+  await batch.commit();
+};
 
 export const getIsRSVPByEventAndUser = async (event_id: string, user_id: string) => {
   const q = query(collection(db, "rsvps"), where("event_id", "==", event_id), where("user_id", "==", user_id));

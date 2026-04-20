@@ -480,7 +480,7 @@
     font-size: clamp(1.2rem, 1cqi, 1.4rem);
     line-height: 2rem;
     color: whitesmoke;
-    width: 60%;
+    width: 40%;
     padding: 0 3rem 0 1rem;
     overflow-wrap: break-word;
 }
@@ -499,6 +499,30 @@
     font-size: 2rem;
     color: white;
     cursor: pointer;
+}
+
+.event-rsvp-count {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 12rem;
+    font-size: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    row-gap: 1rem;
+    color: white;
+}
+
+.users-rsvp {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 10rem;
+    display: flex;
+    flex-direction: column;
+    row-gap: 1rem;
+    font-size: 1.5rem;
+    color: white;
 }
 
 .rsvp-button {
