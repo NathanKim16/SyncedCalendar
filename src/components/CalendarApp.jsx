@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useParams } from "react-router-dom"
 import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent, getMembershipsByCalendar, getUser, createRSVP, deleteRSVPByEventAndUser, getIsRSVPByEventAndUser, getRSVPsByUser, updateRSVP } from "../services/firestoreService"
 import { Timestamp } from "firebase/firestore"
 import { useAuth } from "./context/auth/index"
@@ -8,6 +9,7 @@ const CalendarApp = () => {
   //Major variables
   const { currentUser, userLoggedIn, loading } = useAuth()
   const userId = currentUser?.uid
+  const { calendarId } = useParams()
 
   //Calendar IDs
   const [calendars, setCalendars] = useState([])
@@ -23,8 +25,11 @@ const CalendarApp = () => {
   const [currentYear, setCurrentYear] = useState(currentDate.getFullYear())
 
   const [selectedDay, setSelectedDay] = useState(currentDate)
+  const [hasSelectedDay, setHasSelectedDay] = useState(false)
   const [showEventPopup, setShowEventPopup] = useState(false)
   const [showRsvpPopup, setShowRsvpPopup] = useState(false)
+  const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 })
+  const [popupPlacement, setPopupPlacement] = useState('top') // 'top' or 'bottom'
 
   // ── NEW: Event state ──────────────────────────────────────
   const [events, setEvents] = useState([])
@@ -67,15 +72,19 @@ const CalendarApp = () => {
           .filter(doc => doc.exists())
           .map(doc => ({ id: doc.id, ...doc.data() }))
         setCalendars(calendarList)
-        if (calendarList.length > 0) {
-          setActiveCalendarId(calendarList[0].id) // default to first
+        
+        // Set active calendar from URL param or default to first
+        if (calendarId && calendarList.some(cal => cal.id === calendarId)) {
+          setActiveCalendarId(calendarId)
+        } else if (calendarList.length > 0) {
+          setActiveCalendarId(calendarList[0].id)
         }
       } catch (error) {
         console.error("Error fetching calendars:", error)
       }
     }
     fetchCalendars()
-  }, [userId])
+  }, [userId, calendarId])
 
   //Fetch events for the active calendar
   useEffect(() => {
@@ -100,7 +109,7 @@ const CalendarApp = () => {
       try {
         const memberships = await getMembershipsByCalendar(activeCalendarId)
         const users = await Promise.all(memberships.map(async (membership) => {
-          if (membership.user_id === userId || membership.user_id === "QuaFv3JlIgSZvNhiX1BDeYUHL1e2") {
+          if (membership.user_id === userId || membership.user_id === "QuaFv3JlIgSZvNhiX1BDeYUHL1e2" || membership.user_id === "usr_00001") {
             return null
           }
           const userDoc = await getUser(membership.user_id)
@@ -153,9 +162,31 @@ useEffect(() => {
   }
 
   const handleDayClick = (day, month, year) => {
+    const clickedDate = new Date(year, month, day)
+    
+    // Toggle selection if clicking the same day
+    if (hasSelectedDay && selectedDay.getDate() === clickedDate.getDate() &&
+        selectedDay.getMonth() === clickedDate.getMonth() &&
+        selectedDay.getFullYear() === clickedDate.getFullYear()) {
+      setHasSelectedDay(false)
+      setSelectedDay(new Date())
+    } else {
+      setSelectedDay(clickedDate)
+      setHasSelectedDay(true)
+    }
+  }
+
+  const handleDayRightClick = (e, day, month, year) => {
+    e.preventDefault()
     const today = new Date()
     const clickedDate = new Date(year, month, day)
-    if (clickedDate >= today || (clickedDate.getDate() === today.getDate() && clickedDate.getMonth() === today.getMonth() && clickedDate.getFullYear() === today.getFullYear())) {
+    
+    // Only allow event creation for today or future dates
+    if (clickedDate >= today || (clickedDate.getDate() === today.getDate() && 
+        clickedDate.getMonth() === today.getMonth() && 
+        clickedDate.getFullYear() === today.getFullYear())) {
+      
+      setSelectedDay(clickedDate)
       setShowEventPopup(true)
       setEventTitle('')
       setStartHours(0)
@@ -164,12 +195,31 @@ useEffect(() => {
       setEndMinutes(59)
       setEventColor("#00a3ff")
       setEditingEvent(null)
+      
+      // Estimate popup height (adjust this value based on your actual popup size)
+      const estimatedPopupHeight = 400
+      const topPosition = e.clientY - 10
+      
+      // Check if popup would overflow at the top
+      // If top position minus popup height is less than 0, position below instead
+      const wouldOverflowTop = (topPosition - estimatedPopupHeight) < 0
+      
+      if (wouldOverflowTop) {
+        // Position popup at bottom-right of click
+        setPopupPosition({
+          top: e.clientY + 10,
+          left: e.clientX
+        })
+        setPopupPlacement('bottom')
+      } else {
+        // Position popup at top-right of click (original behavior)
+        setPopupPosition({
+          top: topPosition,
+          left: e.clientX
+        })
+        setPopupPlacement('top')
+      }
     }
-    else {
-      setShowEventPopup(false)
-      setEditingEvent(null)
-    }
-    setSelectedDay(clickedDate)
   }
 
   // ── NEW: Add event handler ────────────────────────────────
@@ -265,6 +315,16 @@ useEffect(() => {
   const hasUserRsvp = (eventId) => {
     return userRsvps.some(rsvp => rsvp.event_id === eventId);
   };
+
+  // Filter events based on selected day
+  const filteredEvents = hasSelectedDay
+    ? events.filter(event => {
+        const eventDate = event.start_time.toDate()
+        return eventDate.getDate() === selectedDay.getDate() &&
+               eventDate.getMonth() === selectedDay.getMonth() &&
+               eventDate.getFullYear() === selectedDay.getFullYear()
+      })
+    : events;
 
   const handleRsvpClick = (event, userId) => {
     const isRsvp = hasUserRsvp(event.id);
@@ -367,7 +427,9 @@ useEffect(() => {
           {[...Array(daysInMonth).keys()].map((dummy, index) => (
             <span
               onClick={() => handleDayClick(index + 1, currentMonth, currentYear)}
+              onContextMenu={(e) => handleDayRightClick(e, index + 1, currentMonth, currentYear)}
               className={
+                hasSelectedDay &&
                 (index + 1) === selectedDay.getDate() &&
                 selectedDay.getMonth() === currentMonth &&
                 selectedDay.getFullYear() === currentYear
@@ -404,73 +466,95 @@ useEffect(() => {
 
         {/* ── Event Popup ── */}
         {showEventPopup && (
-          <div className="event-popup">
+          <div className="event-popup" style={{
+            position: 'fixed',
+            top: `${popupPosition.top}px`,
+            left: `${popupPosition.left}px`,
+            transform: popupPlacement === 'top' ? 'translate(-25%, -105%)' : 'translate(-25%, -5%)',
+          }}>
+            <div className="event-popup-header">
+              <h2 className="event-popup-title">{editingEvent ? "Edit Event" : "Create Event"}</h2>
+            </div>
+
             <div className="time-input-start">
-              <div className="event-popup-time">Start Time</div>
-              {/* ── NEW: Controlled inputs ── */}
-              <input
-                type="number"
-                name="hours"
-                min={0}
-                max={23}
-                className="hours"
-                value={startHours}
-                onChange={(e) => { if(Number(e.target.value) >= 0 && Number(e.target.value) <= 23 &&
-                (Number(e.target.value) < endHours || (Number(e.target.value) === endHours && startMinutes < endMinutes)))  
-                { setStartHours(Number(e.target.value)) } }}
-              />
-              <input
-                type="number"
-                name="minutes"
-                min={0}
-                max={59}
-                className="minutes"
-                value={startMinutes}
-                onChange={(e) => { if(Number(e.target.value) >= 0 && Number(e.target.value) <= 59 &&
-                (startHours < endHours || (startHours === endHours && Number(e.target.value) < endMinutes)))  
-                { setStartMinutes(Number(e.target.value)) } }}
-              />
+              <div className="time-section-label">Start Time</div>
+              <div className="time-inputs-wrapper">
+                <input
+                  type="number"
+                  name="hours"
+                  min={0}
+                  max={23}
+                  placeholder="HH"
+                  value={String(startHours).padStart(2, '0')}
+                  onChange={(e) => { if(Number(e.target.value) >= 0 && Number(e.target.value) <= 23 &&
+                  (Number(e.target.value) < endHours || (Number(e.target.value) === endHours && startMinutes < endMinutes)))  
+                  { setStartHours(Number(e.target.value)) } }}
+                />
+                <span style={{ color: '#78879e', fontSize: '1.5rem', fontWeight: 'bold' }}>:</span>
+                <input
+                  type="number"
+                  name="minutes"
+                  min={0}
+                  max={59}
+                  placeholder="MM"
+                  value={String(startMinutes).padStart(2, '0')}
+                  onChange={(e) => { if(Number(e.target.value) >= 0 && Number(e.target.value) <= 59 &&
+                  (startHours < endHours || (startHours === endHours && Number(e.target.value) < endMinutes)))  
+                  { setStartMinutes(Number(e.target.value)) } }}
+                />
+              </div>
             </div>
+
             <div className="time-input-end">
-              <div className="event-popup-time">End Time</div>
-              <input
-                type="number"
-                name="hours"
-                min={0}
-                max={23}
-                className="hours"
-                value={endHours}
-                onChange={(e) => { if(Number(e.target.value) >= 0 && Number(e.target.value) <= 23 &&
-                (Number(e.target.value) > startHours || (Number(e.target.value) === startHours && endMinutes > startMinutes)))  
-                { setEndHours(Number(e.target.value)) } }}
-              />
-              <input
-                type="number"
-                name="minutes"
-                min={0}
-                max={59}
-                className="minutes"
-                value={endMinutes}
-                onChange={(e) => { if(Number(e.target.value) >= 0 && Number(e.target.value) <= 59 &&
-                (endHours > startHours || (endHours === startHours && Number(e.target.value) > startMinutes)))  
-                { setEndMinutes(Number(e.target.value)) } }}
-              />
+              <div className="time-section-label">End Time</div>
+              <div className="time-inputs-wrapper">
+                <input
+                  type="number"
+                  name="hours"
+                  min={0}
+                  max={23}
+                  placeholder="HH"
+                  value={String(endHours).padStart(2, '0')}
+                  onChange={(e) => { if(Number(e.target.value) >= 0 && Number(e.target.value) <= 23 &&
+                  (Number(e.target.value) > startHours || (Number(e.target.value) === startHours && endMinutes > startMinutes)))  
+                  { setEndHours(Number(e.target.value)) } }}
+                />
+                <span style={{ color: '#78879e', fontSize: '1.5rem', fontWeight: 'bold' }}>:</span>
+                <input
+                  type="number"
+                  name="minutes"
+                  min={0}
+                  max={59}
+                  placeholder="MM"
+                  value={String(endMinutes).padStart(2, '0')}
+                  onChange={(e) => { if(Number(e.target.value) >= 0 && Number(e.target.value) <= 59 &&
+                  (endHours > startHours || (endHours === startHours && Number(e.target.value) > startMinutes)))  
+                  { setEndMinutes(Number(e.target.value)) } }}
+                />
+              </div>
             </div>
-            {/* ── NEW: Controlled textarea ── */}
-            <textarea
-              placeholder="Enter Event Text (Maximum 40 Characters)"
-              maxLength={40}
-              value={eventTitle}
-              onChange={(e) => setEventTitle(e.target.value)}
-            ></textarea>
+
+            <div className="event-title-section">
+              <div className="event-title-label">Event Name</div>
+              <textarea
+                placeholder="Enter event name (max 40 characters)"
+                maxLength={40}
+                value={eventTitle}
+                onChange={(e) => setEventTitle(e.target.value)}
+              ></textarea>
+            </div>
+
             <div className="color-picker">
-                    <div className="color-title">Event Color:</div>
-                    <input type="color" value={eventColor} onChange={(e) => setEventColor(e.target.value)} />
-                </div>
-            {/* ── NEW: onClick wired to handleAddEvent ── */}
-            <button className="event-pop-btn" onClick={handleAddEvent} disabled={isSubmitting}>
-              {editingEvent ? "Save Changes" : "Add Event"}
-            </button>
+              <div className="color-title">Event Color</div>
+              <input type="color" value={eventColor} onChange={(e) => setEventColor(e.target.value)} />
+            </div>
+
+            <div className="event-popup-buttons">
+              <button className="event-pop-btn" onClick={handleAddEvent} disabled={isSubmitting}>
+                {editingEvent ? "Save Changes" : "Create Event"}
+              </button>
+            </div>
+
             <button
               className="close-event-popup"
               onClick={() => {
@@ -543,7 +627,7 @@ useEffect(() => {
 
       {/* ── NEW: Dynamic event list from Firestore ── */}
       <div className="events">
-        {events.map((event) => (
+        {filteredEvents.map((event) => (
           <div className={`event ${activeEventId === event.id ? 'is-active' : ''}`} key={event.id} style={{backgroundColor: event.color}}>
             <div className="event-date-wrapper">
               <div className="event-date">
