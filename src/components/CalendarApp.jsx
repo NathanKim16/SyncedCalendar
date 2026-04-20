@@ -607,6 +607,8 @@ useEffect(() => {
           boxShadow: "-0.5rem 0 2rem rgba(0,0,0,0.4)",
           zIndex: 500,
           overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
             <div>
@@ -644,6 +646,33 @@ useEffect(() => {
                 <div>
                   <div style={{ color: "#ffffff", fontWeight: 700 }}>{member.displayName || member.email || "Unknown"}</div>
                   <div style={{ color: "#78879e", fontSize: "0.9rem", marginTop: "0.35rem" }}>{member.email}</div>
+                  {/* ← Add role badge */}
+                  <div style={{
+                    display: "inline-block",
+                    marginTop: "0.4rem",
+                    padding: "0.15rem 0.6rem",
+                    borderRadius: "999px",
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    fontFamily: "Inter, sans-serif",
+                    backgroundColor:
+                      member.role === "owner" ? "rgba(255, 200, 0, 0.15)" :
+                      member.role === "admin" ? "rgba(0, 163, 255, 0.15)" :
+                      "rgba(120, 135, 158, 0.15)",
+                    color:
+                      member.role === "owner" ? "#ffc800" :
+                      member.role === "admin" ? "#00a3ff" :
+                      "#78879e",
+                    border: `1px solid ${
+                      member.role === "owner" ? "#ffc800" :
+                      member.role === "admin" ? "#00a3ff" :
+                      "#78879e"
+                    }`,
+                  }}>
+                    {member.role === "owner" ? "Owner" :
+                    member.role === "admin" ? "Admin" :
+                    "Member"}
+                  </div>
                 </div>
               {(userRole === "owner" || (userRole === "admin" && member.role !== "owner")) && (
                 <div style={{ position: "relative" }}>
@@ -740,6 +769,22 @@ useEffect(() => {
               )}
               </div>
             ))}
+          </div>
+          {/* Invite Code */}
+          <div style={{
+            marginTop: "auto",
+            paddingTop: "1.5rem",
+            padding: "1rem",
+            borderRadius: "1rem",
+            border: "1px solid #2a2f3b",
+            textAlign: "center",
+          }}>
+            <div style={{ color: "#78879e", fontSize: "0.85rem", fontFamily: "Inter, sans-serif", marginBottom: "0.4rem" }}>
+              Invite Code
+            </div>
+            <div style={{ color: "#ffffff", fontSize: "1.4rem", fontWeight: 700, letterSpacing: "0.2rem", fontFamily: "monospace" }}>
+              {activeCalendarId ? activeCalendarId.slice(-5).toUpperCase() : "—"}
+            </div>
           </div>
         </div>
       )}

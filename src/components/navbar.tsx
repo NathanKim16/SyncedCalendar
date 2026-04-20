@@ -378,8 +378,8 @@ function NavBar() {
                                             fontFamily: "Inter, sans-serif",
                                             cursor: "pointer",
                                             fontWeight: "600",
-                                            backgroundColor: joiningCalendar || !joinCode.trim() ? "#5a5f6b" : "#51cf66",
-                                            cursor: joiningCalendar || !joinCode.trim() ? "not-allowed" : "pointer",
+                                            // backgroundColor: joiningCalendar || !joinCode.trim() ? "#5a5f6b" : "#51cf66",
+                                            // cursor: joiningCalendar || !joinCode.trim() ? "not-allowed" : "pointer",
                                         }}
                                     >
                                         {joiningCalendar ? "Joining..." : "Join"}
@@ -840,40 +840,41 @@ function NavBar() {
                                         Cancel
                                     </button>
                                 </div>
-
-                                <button
-                                    onClick={async () => {
-                                        if (window.confirm(`Are you sure you want to delete "${selectedCalendarForPopup.name}"? This will remove all events and memberships.`)) {
-                                            setDeletingCalendar(true)
-                                            try {
-                                                await deleteEventsByCalendar(selectedCalendarForPopup.id)
-                                                await deleteMembershipsByCalendar(selectedCalendarForPopup.id)
-                                                await deleteCalendar(selectedCalendarForPopup.id)
-                                                setRefreshCalendars(!refreshCalendars)
-                                                setShowCalendarPopup(false)
-                                                navigate('/')
-                                            } catch (error) {
-                                                console.error("Error deleting calendar:", error)
-                                            } finally {
-                                                setDeletingCalendar(false)
+                                {userCalendarRole === "owner" && (
+                                    <button
+                                        onClick={async () => {
+                                            if (window.confirm(`Are you sure you want to delete "${selectedCalendarForPopup.name}"? This will remove all events and memberships.`)) {
+                                                setDeletingCalendar(true)
+                                                try {
+                                                    await deleteEventsByCalendar(selectedCalendarForPopup.id)
+                                                    await deleteMembershipsByCalendar(selectedCalendarForPopup.id)
+                                                    await deleteCalendar(selectedCalendarForPopup.id)
+                                                    setRefreshCalendars(!refreshCalendars)
+                                                    setShowCalendarPopup(false)
+                                                    navigate('/')
+                                                } catch (error) {
+                                                    console.error("Error deleting calendar:", error)
+                                                } finally {
+                                                    setDeletingCalendar(false)
+                                                }
                                             }
-                                        }
-                                    }}
-                                    disabled={deletingCalendar}
-                                    style={{
-                                        backgroundColor: "#ff4444",
-                                        border: "none",
-                                        borderRadius: "0.5rem",
-                                        padding: "0.7rem",
-                                        color: "white",
-                                        fontSize: "1.1rem",
-                                        fontFamily: "Inter, sans-serif",
-                                        cursor: deletingCalendar ? "not-allowed" : "pointer",
-                                        opacity: deletingCalendar ? 0.6 : 1,
-                                    }}
-                                >
+                                        }}
+                                        disabled={deletingCalendar}
+                                        style={{
+                                            backgroundColor: "#ff4444",
+                                            border: "none",
+                                            borderRadius: "0.5rem",
+                                            padding: "0.7rem",
+                                            color: "white",
+                                            fontSize: "1.1rem",
+                                            fontFamily: "Inter, sans-serif",
+                                            cursor: deletingCalendar ? "not-allowed" : "pointer",
+                                            opacity: deletingCalendar ? 0.6 : 1,
+                                        }}
+                                    >
                                     {deletingCalendar ? "Deleting..." : "Delete Calendar"}
-                                </button>
+                                    </button>
+                                )}
                             </div>
                         )}
                         {userCalendarRole !== "owner" && userCalendarRole !== "admin" && (
