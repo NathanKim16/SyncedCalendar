@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
-import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent, getMembershipsByCalendar, getUser, createRSVP, deleteRSVPByEventAndUser, getIsRSVPByEventAndUser, getRSVPsByUser, updateRSVP, deleteRSVPsByEventID, incrementRSVPCount} from "../services/firestoreService"
 import { useParams } from "react-router-dom"
+import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent, getMembershipsByCalendar, getUser, createRSVP, deleteRSVPByEventAndUser, getIsRSVPByEventAndUser, getRSVPsByUser, updateRSVP, deleteMembership, updateMembership, deleteRSVPsByUserAndCalendar,  deleteRSVPsByEventID, incrementRSVPCount} from "../services/firestoreService"
 import { Timestamp, doc, onSnapshot, collection, query, where } from "firebase/firestore"
 import { useAuth } from "./context/auth/index"
 import MembersIcon from "../assets/Members.png"
@@ -11,6 +11,8 @@ const CalendarApp = () => {
   const { currentUser, userLoggedIn, loading } = useAuth()
   const userId = currentUser?.uid
   const { calendarId } = useParams()
+  const [userRole, setUserRole] = useState(null)
+  const [memberMenuOpenId, setMemberMenuOpenId] = useState(null)
 
   //Calendar IDs
   const [calendars, setCalendars] = useState([])
@@ -32,7 +34,7 @@ const CalendarApp = () => {
   const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 })
   const [popupPlacement, setPopupPlacement] = useState('top') // 'top' or 'bottom'
 
-  // ── NEW: Event state ──────────────────────────────────────
+  // Event state
   const [events, setEvents] = useState([])
   const [eventTitle, setEventTitle] = useState("")
   const [startHours, setStartHours] = useState(0)
@@ -101,10 +103,15 @@ const CalendarApp = () => {
   }, [activeCalendarId])
 
   useEffect(() => {
-    if (!activeCalendarId) return
+    if (!activeCalendarId || !userId) return
     const fetchMembers = async () => {
       try {
         const memberships = await getMembershipsByCalendar(activeCalendarId)
+        const currentUserMembership = memberships.find(m => m.user_id === userId)
+        console.log("All memberships for calendar:", memberships)
+        console.log("Current user's membership:", currentUserMembership)
+        const role = currentUserMembership?.role || null
+        setUserRole(role)
         const users = await Promise.all(memberships.map(async (membership) => {
           if (membership.user_id === userId || membership.user_id === "QuaFv3JlIgSZvNhiX1BDeYUHL1e2" || membership.user_id === "usr_00001") {
             return null
@@ -117,6 +124,7 @@ const CalendarApp = () => {
             userId: membership.user_id,
             displayName: userData?.username || "",
             email,
+            role: membership.role || "user",
           }
         }))
 
@@ -219,7 +227,7 @@ useEffect(() => {
     }
   }
 
-  // ── NEW: Add event handler ────────────────────────────────
+  // Add event handler
   const handleAddEvent = async () => {
     if (!eventTitle.trim()) return
     if (!activeCalendarId) return
@@ -286,7 +294,7 @@ useEffect(() => {
   }
 
 
-  // ── NEW: Delete event handler ─────────────────────────────
+  // Delete event handler
   const handleDeleteEvent = async (id) => {
     try {
       await deleteEvent(id)
@@ -348,6 +356,32 @@ useEffect(() => {
     setShowRsvpPopup(false)
   }
 
+
+  // Handle Member Kick
+  const handleKickMember = async (membershipId) => {
+    try {
+      const member = members.find(m => m.id === membershipId)
+      await deleteRSVPsByUserAndCalendar(member.userId, activeCalendarId) // ← delete RSVPs first
+      await deleteMembership(membershipId)
+      setMembers(prev => prev.filter(m => m.id !== membershipId))
+      setMemberMenuOpenId(null)
+    } catch (error) {
+      console.error("Error kicking member:", error)
+    }
+  }
+
+  // Handle setting roles
+  const handleSetRole = async (membershipId, newRole) => {
+    try {
+      await updateMembership(membershipId, { role: newRole })
+      setMembers(prev => prev.map(m => 
+        m.id === membershipId ? { ...m, role: newRole } : m
+      ))
+      setMemberMenuOpenId(null)
+    } catch (error) {
+      console.error("Error updating role:", error)
+    }
+  }
 
   return (
     <div className="calendar-app">
@@ -606,9 +640,104 @@ useEffect(() => {
                 No other members found for this calendar.
               </div>
             ) : members.map((member) => (
-              <div key={member.id} style={{ padding: "1rem", backgroundColor: "#0f1319", borderRadius: "1rem", border: "1px solid #2a2f3b" }}>
-                <div style={{ color: "#ffffff", fontWeight: 700 }}>{member.displayName || member.email || "Unknown"}</div>
-                <div style={{ color: "#78879e", fontSize: "0.9rem", marginTop: "0.35rem" }}>{member.email}</div>
+              <div key={member.id} style={{ padding: "1rem", backgroundColor: "#0f1319", borderRadius: "1rem", border: "1px solid #2a2f3b", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ color: "#ffffff", fontWeight: 700 }}>{member.displayName || member.email || "Unknown"}</div>
+                  <div style={{ color: "#78879e", fontSize: "0.9rem", marginTop: "0.35rem" }}>{member.email}</div>
+                </div>
+              {(userRole === "owner" || (userRole === "admin" && member.role !== "owner")) && (
+                <div style={{ position: "relative" }}>
+                  <button
+                      onClick={() => setMemberMenuOpenId(
+                      memberMenuOpenId === member.id ? null : member.id
+                      )}
+                      style={{
+                      background: "none",
+                      border: "none",
+                      color: "#ffffff",
+                      fontSize: "1.4rem",
+                      cursor: "pointer",
+                      padding: "0.2rem 0.5rem",
+                      borderRadius: "0.4rem",
+                      }}
+                  >
+                      ···
+                  </button>
+
+                  {memberMenuOpenId === member.id && (
+                      <div style={{
+                        position: "absolute",
+                        right: 0,
+                        top: "2.2rem",
+                        backgroundColor: "#1e2426",
+                        border: "1px solid #2a2f3b",
+                        borderRadius: "0.8rem",
+                        padding: "0.4rem",
+                        zIndex: 600,
+                        minWidth: "10rem",
+                        boxShadow: "0 0.5rem 1.5rem rgba(0,0,0,0.4)",
+                      }}>
+                      {/*Set member to Admin*/}
+                      {userRole === "owner" && member.role !== "admin" && (
+                        <div
+                          onClick={() => handleSetRole(member.id, "admin")}
+                          style={{
+                            padding: "0.7rem 1rem",
+                            color: "#ffffff",
+                            fontSize: "1rem",
+                            cursor: "pointer",
+                            borderRadius: "0.5rem",
+                            fontFamily: "Inter, sans-serif",
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.backgroundColor = "#2a2f3b"}
+                          onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}
+                        >
+                          Set as Admin
+                        </div>
+                      )}
+                      {/*Set member to User*/}
+                      {userRole === "owner" && member.role !== "user" && (
+                        <div
+                          onClick={() => handleSetRole(member.id, "user")}
+                          style={{
+                            padding: "0.7rem 1rem",
+                            color: "#ffffff",
+                            fontSize: "1rem",
+                            cursor: "pointer",
+                            borderRadius: "0.5rem",
+                            fontFamily: "Inter, sans-serif",
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.backgroundColor = "#2a2f3b"}
+                          onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}
+                        >
+                          Set as User
+                        </div>
+                      )}
+                      {/* Divider between role options and kick — only show if owner */}
+                      {userRole === "owner" && (
+                        <div style={{ borderTop: "1px solid #2a2f3b", margin: "0.3rem 0" }} />
+                      )}
+
+                      {/* Kick Member */}
+                      <div
+                        onClick={() => handleKickMember(member.id)}
+                        style={{
+                          padding: "0.7rem 1rem",
+                          color: "#ff5050",
+                          fontSize: "1rem",
+                          cursor: "pointer",
+                          borderRadius: "0.5rem",
+                          fontFamily: "Inter, sans-serif",
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.backgroundColor = "#2a2f3b"}
+                        onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}
+                      >
+                          Kick
+                      </div>
+                      </div>
+                  )}
+                </div>
+              )}
               </div>
             ))}
           </div>
