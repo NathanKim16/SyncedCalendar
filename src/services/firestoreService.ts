@@ -124,6 +124,9 @@ export const getMembershipByUserAndCalendar = async (user_id: string, cal_id: st
   return snapshot.empty ? null : { id: snapshot.docs[0].id, ...snapshot.docs[0].data() as Membership };
 };
 
+export const deleteMembership = async (id: string) =>
+  await deleteDoc(doc(db, "memberships", id));
+
 export const deleteEventsByCalendar = async (cal_id: string) => {
   const q = query(collection(db, "events"), where("cal_id", "==", cal_id));
   const snapshot = await getDocs(q);
