@@ -2,7 +2,8 @@ import { db } from "../firebase";
 import {
   collection, addDoc, getDocs, getDoc,
   setDoc, doc, updateDoc, deleteDoc, query, where,
-  Timestamp
+  Timestamp,
+  writeBatch
 } from "firebase/firestore";
 
 // ─── TYPES ───────────────────────────────────────────────
@@ -169,6 +170,16 @@ export const updateRSVP = async (id: string, data: Partial<RSVP>) =>
 
 export const deleteRSVP = async (id: string) =>
   await deleteDoc(doc(db, "rsvps", id));
+
+export const deleteRSVPsByEventID = async (event_id: string) => {
+  const q = query(collection(db, "rsvps"), where("event_id", "==", event_id));
+  const snapshot = await getDocs(q);
+  const batch = writeBatch(db);
+  snapshot.docs.forEach((doc) => {
+    batch.delete(doc.ref);
+  });
+  await batch.commit();
+};
 
 export const getIsRSVPByEventAndUser = async (event_id: string, user_id: string) => {
   const q = query(collection(db, "rsvps"), where("event_id", "==", event_id), where("user_id", "==", user_id));

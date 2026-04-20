@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent, getMembershipsByCalendar, getUser, createRSVP, deleteRSVPByEventAndUser, getIsRSVPByEventAndUser, getRSVPsByUser, updateRSVP } from "../services/firestoreService"
+import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent, getMembershipsByCalendar, getUser, createRSVP, deleteRSVPByEventAndUser, getIsRSVPByEventAndUser, getRSVPsByUser, updateRSVP, deleteRSVPsByEventID} from "../services/firestoreService"
 import { Timestamp } from "firebase/firestore"
 import { useAuth } from "./context/auth/index"
 import MembersIcon from "../assets/Members.png"
@@ -246,7 +246,7 @@ useEffect(() => {
       updated.sort((a, b) => a.start_time.toDate() - b.start_time.toDate())
       setEvents(updated)
       if (hasUserRsvp(id)) {
-        await deleteRSVPByEventAndUser(id, userId)
+        await deleteRSVPsByEventID(id)
         setUserRsvps(prev => prev.filter(rsvp => rsvp.event_id !== id))
       }
     } catch (error) {
