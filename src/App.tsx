@@ -16,6 +16,7 @@ const AppContent = () => {
             <Routes>
                 <Route path="/" element={<Login />} />
                 <Route path="/calendar" element={<CalendarApp />} />
+                <Route path="/calendar/:calendarId" element={<CalendarApp />} />
                 <Route path="/home" element={<WeekView />} />
             </Routes>
         </div>
