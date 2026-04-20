@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react"
 import { useParams } from "react-router-dom"
-import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent, getMembershipsByCalendar, getUser, createRSVP, deleteRSVPByEventAndUser, getIsRSVPByEventAndUser, getRSVPsByUser, updateRSVP } from "../services/firestoreService"
-import { Timestamp } from "firebase/firestore"
+import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent, getMembershipsByCalendar, getUser, createRSVP, deleteRSVPByEventAndUser, getIsRSVPByEventAndUser, getRSVPsByUser, updateRSVP, deleteMembership, updateMembership, deleteRSVPsByUserAndCalendar,  deleteRSVPsByEventID, incrementRSVPCount} from "../services/firestoreService"
+import { Timestamp, doc, onSnapshot, collection, query, where } from "firebase/firestore"
 import { useAuth } from "./context/auth/index"
 import MembersIcon from "../assets/Members.png"
+import { db } from "../firebase.ts";
 
 const CalendarApp = () => {
   //Major variables
   const { currentUser, userLoggedIn, loading } = useAuth()
   const userId = currentUser?.uid
   const { calendarId } = useParams()
+  const [userRole, setUserRole] = useState(null)
+  const [memberMenuOpenId, setMemberMenuOpenId] = useState(null)
 
   //Calendar IDs
   const [calendars, setCalendars] = useState([])
@@ -31,7 +34,7 @@ const CalendarApp = () => {
   const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 })
   const [popupPlacement, setPopupPlacement] = useState('top') // 'top' or 'bottom'
 
-  // ── NEW: Event state ──────────────────────────────────────
+  // Event state
   const [events, setEvents] = useState([])
   const [eventTitle, setEventTitle] = useState("")
   const [startHours, setStartHours] = useState(0)
@@ -43,7 +46,6 @@ const CalendarApp = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [members, setMembers] = useState([])
   const [showMembersSidebar, setShowMembersSidebar] = useState(false)
-  const [rsvpNote, setRsvpNote] = useState("")
   const [activeEventId, setActiveEventId] = useState(null)
 
   const activeCalendar = calendars.find(cal => cal.id === activeCalendarId)
@@ -89,25 +91,27 @@ const CalendarApp = () => {
   //Fetch events for the active calendar
   useEffect(() => {
     if (!activeCalendarId) return
-    const fetchEvents = async () => {
-      try {
-        console.log("Fetching events for calendar:", activeCalendarId)
-        const data = await getEventsByCalendar(activeCalendarId)
-        console.log("Events returned:", data)
-        data.sort((a, b) => a.start_time.toDate() - b.start_time.toDate())
-        setEvents(data)
-      } catch (error) {
-        console.error("Error fetching events:", error)
-      }
-    }
-    fetchEvents()
+    
+    console.log("Fetching events for calendar:", activeCalendarId)
+    const eventsCollection = query(collection(db, "events"), where("cal_id", "==", activeCalendarId));
+    const unsubscribe = onSnapshot(eventsCollection, (snapshot) => {const updatedEvents = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})); 
+    setEvents(updatedEvents)
+    })
+    
+    
+    return () => unsubscribe();
   }, [activeCalendarId])
 
   useEffect(() => {
-    if (!activeCalendarId) return
+    if (!activeCalendarId || !userId) return
     const fetchMembers = async () => {
       try {
         const memberships = await getMembershipsByCalendar(activeCalendarId)
+        const currentUserMembership = memberships.find(m => m.user_id === userId)
+        console.log("All memberships for calendar:", memberships)
+        console.log("Current user's membership:", currentUserMembership)
+        const role = currentUserMembership?.role || null
+        setUserRole(role)
         const users = await Promise.all(memberships.map(async (membership) => {
           if (membership.user_id === userId || membership.user_id === "QuaFv3JlIgSZvNhiX1BDeYUHL1e2" || membership.user_id === "usr_00001") {
             return null
@@ -120,6 +124,7 @@ const CalendarApp = () => {
             userId: membership.user_id,
             displayName: userData?.username || "",
             email,
+            role: membership.role || "user",
           }
         }))
 
@@ -222,7 +227,7 @@ useEffect(() => {
     }
   }
 
-  // ── NEW: Add event handler ────────────────────────────────
+  // Add event handler
   const handleAddEvent = async () => {
     if (!eventTitle.trim()) return
     if (!activeCalendarId) return
@@ -247,6 +252,7 @@ useEffect(() => {
       location: "",
       rsvp_deadline: "",
       color: eventColor || "#00a3ff",
+      numberOfRSVPs: 0,
     }
 
     try {
@@ -288,7 +294,7 @@ useEffect(() => {
   }
 
 
-  // ── NEW: Delete event handler ─────────────────────────────
+  // Delete event handler
   const handleDeleteEvent = async (id) => {
     try {
       await deleteEvent(id)
@@ -296,7 +302,7 @@ useEffect(() => {
       updated.sort((a, b) => a.start_time.toDate() - b.start_time.toDate())
       setEvents(updated)
       if (hasUserRsvp(id)) {
-        await deleteRSVPByEventAndUser(id, userId)
+        await deleteRSVPsByEventID(id)
         setUserRsvps(prev => prev.filter(rsvp => rsvp.event_id !== id))
       }
     } catch (error) {
@@ -326,37 +332,55 @@ useEffect(() => {
       })
     : events;
 
-  const handleRsvpClick = (event, userId) => {
+  const handleRsvpClick = async (event, userId) => {
     const isRsvp = hasUserRsvp(event.id);
 
     if (isRsvp) {
-      deleteRSVPByEventAndUser(event.id, userId)
+      await deleteRSVPByEventAndUser(event.id, userId)
       setUserRsvps(prev => prev.filter(rsvp => rsvp.event_id !== event.id))
-
+      incrementRSVPCount(event.id, -1)
     }
     else {
       const newRsvp = {
         event_id: event.id,
         user_id: userId,
-        note: rsvpNote,
         timestamp: Timestamp.now(),
       }
 
-      const docRef = createRSVP(newRsvp)
+      const docRef = await createRSVP(newRsvp)
       setUserRsvps(prev => [...prev, { ...newRsvp, id: docRef.id }])
+      incrementRSVPCount(event.id, 1)
     }
 
     setActiveEventId(null)
     setShowRsvpPopup(false)
   }
-  const handleNoteUpdate = async (eventId) => {
-    const existingRsvp = userRsvps.find(rsvp => rsvp.event_id === eventId);
-    if (existingRsvp) {
-      await updateRSVP(existingRsvp.id, { note: rsvpNote });
-      setUserRsvps(prev => prev.map(rsvp => rsvp.id === existingRsvp.id ? { ...rsvp, note: rsvpNote } : rsvp));
+
+
+  // Handle Member Kick
+  const handleKickMember = async (membershipId) => {
+    try {
+      const member = members.find(m => m.id === membershipId)
+      await deleteRSVPsByUserAndCalendar(member.userId, activeCalendarId) // ← delete RSVPs first
+      await deleteMembership(membershipId)
+      setMembers(prev => prev.filter(m => m.id !== membershipId))
+      setMemberMenuOpenId(null)
+    } catch (error) {
+      console.error("Error kicking member:", error)
     }
-    setShowRsvpPopup(false)
-    setActiveEventId(null)
+  }
+
+  // Handle setting roles
+  const handleSetRole = async (membershipId, newRole) => {
+    try {
+      await updateMembership(membershipId, { role: newRole })
+      setMembers(prev => prev.map(m => 
+        m.id === membershipId ? { ...m, role: newRole } : m
+      ))
+      setMemberMenuOpenId(null)
+    } catch (error) {
+      console.error("Error updating role:", error)
+    }
   }
 
   return (
@@ -616,9 +640,104 @@ useEffect(() => {
                 No other members found for this calendar.
               </div>
             ) : members.map((member) => (
-              <div key={member.id} style={{ padding: "1rem", backgroundColor: "#0f1319", borderRadius: "1rem", border: "1px solid #2a2f3b" }}>
-                <div style={{ color: "#ffffff", fontWeight: 700 }}>{member.displayName || member.email || "Unknown"}</div>
-                <div style={{ color: "#78879e", fontSize: "0.9rem", marginTop: "0.35rem" }}>{member.email}</div>
+              <div key={member.id} style={{ padding: "1rem", backgroundColor: "#0f1319", borderRadius: "1rem", border: "1px solid #2a2f3b", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ color: "#ffffff", fontWeight: 700 }}>{member.displayName || member.email || "Unknown"}</div>
+                  <div style={{ color: "#78879e", fontSize: "0.9rem", marginTop: "0.35rem" }}>{member.email}</div>
+                </div>
+              {(userRole === "owner" || (userRole === "admin" && member.role !== "owner")) && (
+                <div style={{ position: "relative" }}>
+                  <button
+                      onClick={() => setMemberMenuOpenId(
+                      memberMenuOpenId === member.id ? null : member.id
+                      )}
+                      style={{
+                      background: "none",
+                      border: "none",
+                      color: "#ffffff",
+                      fontSize: "1.4rem",
+                      cursor: "pointer",
+                      padding: "0.2rem 0.5rem",
+                      borderRadius: "0.4rem",
+                      }}
+                  >
+                      ···
+                  </button>
+
+                  {memberMenuOpenId === member.id && (
+                      <div style={{
+                        position: "absolute",
+                        right: 0,
+                        top: "2.2rem",
+                        backgroundColor: "#1e2426",
+                        border: "1px solid #2a2f3b",
+                        borderRadius: "0.8rem",
+                        padding: "0.4rem",
+                        zIndex: 600,
+                        minWidth: "10rem",
+                        boxShadow: "0 0.5rem 1.5rem rgba(0,0,0,0.4)",
+                      }}>
+                      {/*Set member to Admin*/}
+                      {userRole === "owner" && member.role !== "admin" && (
+                        <div
+                          onClick={() => handleSetRole(member.id, "admin")}
+                          style={{
+                            padding: "0.7rem 1rem",
+                            color: "#ffffff",
+                            fontSize: "1rem",
+                            cursor: "pointer",
+                            borderRadius: "0.5rem",
+                            fontFamily: "Inter, sans-serif",
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.backgroundColor = "#2a2f3b"}
+                          onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}
+                        >
+                          Set as Admin
+                        </div>
+                      )}
+                      {/*Set member to User*/}
+                      {userRole === "owner" && member.role !== "user" && (
+                        <div
+                          onClick={() => handleSetRole(member.id, "user")}
+                          style={{
+                            padding: "0.7rem 1rem",
+                            color: "#ffffff",
+                            fontSize: "1rem",
+                            cursor: "pointer",
+                            borderRadius: "0.5rem",
+                            fontFamily: "Inter, sans-serif",
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.backgroundColor = "#2a2f3b"}
+                          onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}
+                        >
+                          Set as User
+                        </div>
+                      )}
+                      {/* Divider between role options and kick — only show if owner */}
+                      {userRole === "owner" && (
+                        <div style={{ borderTop: "1px solid #2a2f3b", margin: "0.3rem 0" }} />
+                      )}
+
+                      {/* Kick Member */}
+                      <div
+                        onClick={() => handleKickMember(member.id)}
+                        style={{
+                          padding: "0.7rem 1rem",
+                          color: "#ff5050",
+                          fontSize: "1rem",
+                          cursor: "pointer",
+                          borderRadius: "0.5rem",
+                          fontFamily: "Inter, sans-serif",
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.backgroundColor = "#2a2f3b"}
+                        onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}
+                      >
+                          Kick
+                      </div>
+                      </div>
+                  )}
+                </div>
+              )}
               </div>
             ))}
           </div>
@@ -654,13 +773,13 @@ useEffect(() => {
               </div>
             </div>
             <div className="event-text">{event.title}</div>
+            <div className="event-rsvp-count">{`${event.numberOfRSVPs}`}</div>
+            <div className="users-rsvp">
+              <i className="bx bxs-user"></i>
+            </div>
+
             <div className="rsvp-button">
-              <i className={`bx ${hasUserRsvp(event.id) ? 'bxs-calendar-check' : 'bx-calendar-check'}`} onClick={() => { if(hasUserRsvp(event.id)){
-                const existingRsvp = userRsvps.find(rsvp => rsvp.event_id === event.id);
-                setRsvpNote(existingRsvp ? existingRsvp.note : "")
-              }else{
-                setRsvpNote("")
-              } setActiveEventId(event.id)}}></i>
+              <i className={`bx ${hasUserRsvp(event.id) ? 'bxs-calendar-check' : 'bx-calendar-check'}`} onClick={() => { setActiveEventId(event.id); handleRsvpClick(event, userId)}}></i>
             </div>
             <div className="event-button">
               <i className="bx bxs-edit-alt" onClick={() => handleEditEvent(event)}></i>
@@ -670,50 +789,7 @@ useEffect(() => {
                 onClick={() => handleDeleteEvent(event.id)}
               ></i>
             </div>
-            {activeEventId === event.id && (
               
-              <div className="rsvp-popup">
-                {hasUserRsvp(event.id) ? (
-                  <>   
-
-                    <textarea 
-                      value={rsvpNote} 
-                      onChange={(e) => setRsvpNote(e.target.value)} 
-                    />
-
-                    <button className="rsvp-delete-btn" onClick={() => handleRsvpClick(event, userId)}>
-                      Delete RSVP
-                    </button>
-
-                    <button className="rsvp-update-btn" onClick={() => handleNoteUpdate(event.id)}>
-                      Update Note
-                    </button>
-
-                    <button className="close-event-popup" onClick={() => {setShowRsvpPopup(false); setActiveEventId(null)}}>
-                      <i className="bx bx-x"></i>
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <textarea
-                      placeholder="Enter Rsvp Note (Max 40 Characters)"
-                      maxLength={40}
-                      value={rsvpNote}
-                      onChange={(r) => setRsvpNote(r.target.value)}
-                    ></textarea>
-                    
-                    <button className="rsvp-pop-btn" onClick={() => handleRsvpClick(event, userId)}>
-                      Submit RSVP
-                    </button>
-                    
-                    <button className="close-event-popup" onClick={() => {setShowRsvpPopup(false); setActiveEventId(null)}}>
-                      <i className="bx bx-x"></i>
-                    </button>
-                  </>
-                )}
-
-              </div>
-            )}
           </div>
           
         ))}

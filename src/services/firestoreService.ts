@@ -2,7 +2,8 @@ import { db } from "../firebase";
 import {
   collection, addDoc, getDocs, getDoc,
   setDoc, doc, updateDoc, deleteDoc, query, where,
-  Timestamp
+  Timestamp,
+  writeBatch, increment
 } from "firebase/firestore";
 
 // ─── TYPES ───────────────────────────────────────────────
@@ -42,13 +43,13 @@ interface Event {
   location: string;
   rsvp_deadline: string;
   color: string;
+  numberOfRSVPs: number;
 }
 
 interface RSVP {
   event_id: string;
   user_id: string;
   status: string;
-  note: string;
   responded_at: Timestamp;
 }
 
@@ -124,6 +125,9 @@ export const getMembershipByUserAndCalendar = async (user_id: string, cal_id: st
   return snapshot.empty ? null : { id: snapshot.docs[0].id, ...snapshot.docs[0].data() as Membership };
 };
 
+export const deleteMembership = async (id: string) =>
+  await deleteDoc(doc(db, "memberships", id));
+
 export const deleteEventsByCalendar = async (cal_id: string) => {
   const q = query(collection(db, "events"), where("cal_id", "==", cal_id));
   const snapshot = await getDocs(q);
@@ -162,6 +166,12 @@ export const updateEvent = async (id: string, data: Partial<Event>) =>
 export const deleteEvent = async (id: string) =>
   await deleteDoc(doc(db, "events", id));
 
+export const incrementRSVPCount = async (id: string, amount: number) => {
+  const eventRef = doc(db, "events", id);
+  await updateDoc(eventRef, { numberOfRSVPs: increment(amount) });
+};
+
+
 // ─── RSVPS ───────────────────────────────────────────────
 
 export const createRSVP = async (data: RSVP) =>
@@ -185,6 +195,16 @@ export const updateRSVP = async (id: string, data: Partial<RSVP>) =>
 export const deleteRSVP = async (id: string) =>
   await deleteDoc(doc(db, "rsvps", id));
 
+export const deleteRSVPsByEventID = async (event_id: string) => {
+  const q = query(collection(db, "rsvps"), where("event_id", "==", event_id));
+  const snapshot = await getDocs(q);
+  const batch = writeBatch(db);
+  snapshot.docs.forEach((doc) => {
+    batch.delete(doc.ref);
+  });
+  await batch.commit();
+};
+
 export const getIsRSVPByEventAndUser = async (event_id: string, user_id: string) => {
   const q = query(collection(db, "rsvps"), where("event_id", "==", event_id), where("user_id", "==", user_id));
   const snapshot = await getDocs(q);
@@ -199,6 +219,15 @@ export const deleteRSVPByEventAndUser = async (event_id: string, user_id: string
     await deleteDoc(doc.ref);
   }
 };
+
+export const deleteRSVPsByUserAndCalendar = async (user_id: string, cal_id: string) => {
+  // First get all events in the calendar
+  const events = await getEventsByCalendar(cal_id)
+  // Then delete all RSVPs for each event that belong to the user
+  await Promise.all(
+    events.map(event => deleteRSVPByEventAndUser(event.id, user_id))
+  )
+}
 
 
 // ─── AVAILABILITIES ──────────────────────────────────────
