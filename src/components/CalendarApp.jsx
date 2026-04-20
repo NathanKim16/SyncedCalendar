@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useParams } from "react-router-dom"
-import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent, getMembershipsByCalendar, getUser, createRSVP, deleteRSVPByEventAndUser, getIsRSVPByEventAndUser, getRSVPsByUser, updateRSVP, deleteMembership, updateMembership } from "../services/firestoreService"
+import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent, getMembershipsByCalendar, getUser, createRSVP, deleteRSVPByEventAndUser, getIsRSVPByEventAndUser, getRSVPsByUser, updateRSVP, deleteMembership, updateMembership, deleteRSVPsByUserAndCalendar } from "../services/firestoreService"
 import { Timestamp } from "firebase/firestore"
 import { useAuth } from "./context/auth/index"
 import MembersIcon from "../assets/Members.png"
@@ -370,6 +370,8 @@ useEffect(() => {
   // Handle Member Kick
   const handleKickMember = async (membershipId) => {
     try {
+      const member = members.find(m => m.id === membershipId)
+      await deleteRSVPsByUserAndCalendar(member.userId, activeCalendarId) // ← delete RSVPs first
       await deleteMembership(membershipId)
       setMembers(prev => prev.filter(m => m.id !== membershipId))
       setMemberMenuOpenId(null)
@@ -685,25 +687,6 @@ useEffect(() => {
                         minWidth: "10rem",
                         boxShadow: "0 0.5rem 1.5rem rgba(0,0,0,0.4)",
                       }}>
-
-                      {/*Set member to Owner*/}
-                      {userRole === "owner" && member.role !== "owner" && (
-                        <div
-                          onClick={() => handleSetRole(member.id, "owner")}
-                          style={{
-                            padding: "0.7rem 1rem",
-                            color: "#ffffff",
-                            fontSize: "1rem",
-                            cursor: "pointer",
-                            borderRadius: "0.5rem",
-                            fontFamily: "Inter, sans-serif",
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.backgroundColor = "#2a2f3b"}
-                          onMouseLeave={e => e.currentTarget.style.backgroundColor = "transparent"}
-                        >
-                          Set as Owner
-                        </div>
-                      )}
                       {/*Set member to Admin*/}
                       {userRole === "owner" && member.role !== "admin" && (
                         <div

@@ -203,6 +203,15 @@ export const deleteRSVPByEventAndUser = async (event_id: string, user_id: string
   }
 };
 
+export const deleteRSVPsByUserAndCalendar = async (user_id: string, cal_id: string) => {
+  // First get all events in the calendar
+  const events = await getEventsByCalendar(cal_id)
+  // Then delete all RSVPs for each event that belong to the user
+  await Promise.all(
+    events.map(event => deleteRSVPByEventAndUser(event.id, user_id))
+  )
+}
+
 
 // ─── AVAILABILITIES ──────────────────────────────────────
 
