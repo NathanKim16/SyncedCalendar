@@ -3,7 +3,7 @@ import {
   collection, addDoc, getDocs, getDoc,
   setDoc, doc, updateDoc, deleteDoc, query, where,
   Timestamp,
-  writeBatch
+  writeBatch, increment
 } from "firebase/firestore";
 
 // ─── TYPES ───────────────────────────────────────────────
@@ -43,6 +43,7 @@ interface Event {
   location: string;
   rsvp_deadline: string;
   color: string;
+  numberOfRSVPs: number;
 }
 
 interface RSVP {
@@ -162,6 +163,12 @@ export const updateEvent = async (id: string, data: Partial<Event>) =>
 
 export const deleteEvent = async (id: string) =>
   await deleteDoc(doc(db, "events", id));
+
+export const incrementRSVPCount = async (id: string, amount: number) => {
+  const eventRef = doc(db, "events", id);
+  await updateDoc(eventRef, { numberOfRSVPs: increment(amount) });
+};
+
 
 // ─── RSVPS ───────────────────────────────────────────────
 
