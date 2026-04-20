@@ -1,6 +1,6 @@
-import {db} from "../../firebase"; 
-import {userId} from "../CalendarApp"
-import {email} from "../Login"
+import {db} from "../firebase"; 
+import {userId} from "../components/CalendarApp"
+import {email} from "../components/Login"
 import {collection, query, where, onSnapshot, doc} from "../../firebase/firestore";
 
 //calendar collection

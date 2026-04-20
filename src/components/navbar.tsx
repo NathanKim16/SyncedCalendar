@@ -7,6 +7,7 @@ import { auth } from "../firebase"
 import { setUser, createCalendar, createMembership, getMembershipsByUser, getCalendar, getMembershipByUserAndCalendar, updateCalendar, deleteCalendar, deleteEventsByCalendar, deleteMembershipsByCalendar } from "../services/firestoreService"
 import { Timestamp } from "firebase/firestore"
 import homeIcon from "../assets/home.png"
+import { inviteCodeFunction } from "../services/CodeInvite"
 
 function NavBar() {
     const navigate = useNavigate()
@@ -349,6 +350,7 @@ function NavBar() {
                                         Back
                                     </button>
                                     <button
+                                        onClick={() => inviteCodeFunction(joinCode)}
                                         style={{
                                             flex: 1,
                                             padding: "1.2rem",
