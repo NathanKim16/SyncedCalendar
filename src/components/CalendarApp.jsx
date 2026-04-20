@@ -326,11 +326,11 @@ useEffect(() => {
       })
     : events;
 
-  const handleRsvpClick = (event, userId) => {
+  const handleRsvpClick = async (event, userId) => {
     const isRsvp = hasUserRsvp(event.id);
 
     if (isRsvp) {
-      deleteRSVPByEventAndUser(event.id, userId)
+      await deleteRSVPByEventAndUser(event.id, userId)
       setUserRsvps(prev => prev.filter(rsvp => rsvp.event_id !== event.id))
 
     }
@@ -342,7 +342,7 @@ useEffect(() => {
         timestamp: Timestamp.now(),
       }
 
-      const docRef = createRSVP(newRsvp)
+      const docRef = await createRSVP(newRsvp)
       setUserRsvps(prev => [...prev, { ...newRsvp, id: docRef.id }])
     }
 
