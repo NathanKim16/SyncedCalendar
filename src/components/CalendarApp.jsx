@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useParams } from "react-router-dom"
-import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent, getMembershipsByCalendar, getUser, createRSVP, deleteRSVPByEventAndUser, getIsRSVPByEventAndUser, getRSVPsByUser, updateRSVP, deleteMembership, updateMembership, deleteRSVPsByUserAndCalendar,  deleteRSVPsByEventID, incrementRSVPCount} from "../services/firestoreService"
+import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent, getMembershipsByCalendar, getUser, createRSVP, deleteRSVPByEventAndUser, getIsRSVPByEventAndUser, getRSVPsByUser, updateRSVP, deleteMembership, updateMembership, deleteRSVPsByUserAndCalendar, deleteEventsByUserAndCalendar, deleteRSVPsByEventID, incrementRSVPCount} from "../services/firestoreService"
 import { Timestamp, doc, onSnapshot, collection, query, where } from "firebase/firestore"
 import { useAuth } from "./context/auth/index"
 import MembersIcon from "../assets/Members.png"
@@ -361,7 +361,8 @@ useEffect(() => {
   const handleKickMember = async (membershipId) => {
     try {
       const member = members.find(m => m.id === membershipId)
-      await deleteRSVPsByUserAndCalendar(member.userId, activeCalendarId) // ← delete RSVPs first
+      await deleteEventsByUserAndCalendar(member.userId, activeCalendarId)
+      await deleteRSVPsByUserAndCalendar(member.userId, activeCalendarId)
       await deleteMembership(membershipId)
       setMembers(prev => prev.filter(m => m.id !== membershipId))
       setMemberMenuOpenId(null)
