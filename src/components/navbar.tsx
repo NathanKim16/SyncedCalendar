@@ -35,6 +35,7 @@ function NavBar() {
     const [editingCalendarColor, setEditingCalendarColor] = useState("")
     const [deletingCalendar, setDeletingCalendar] = useState(false)
     const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 })
+    const [joiningCalendar, setJoiningCalendar] = useState(false)
 
 
     useEffect(() => {
@@ -350,7 +351,22 @@ function NavBar() {
                                         Back
                                     </button>
                                     <button
-                                        onClick={() => inviteCodeFunction(joinCode)}
+                                        onClick={async () => {
+                                            if (!joinCode.trim()) return
+                                            setJoiningCalendar(true)
+                                            try {
+                                                const result = await inviteCodeFunction(joinCode, currentUser?.uid)
+                                                if (result.success) {
+                                                    setRefreshCalendars(prev => !prev)
+                                                    closeModal()
+                                                } else {
+                                                    alert(result.message)
+                                                }
+                                            } finally {
+                                                setJoiningCalendar(false)
+                                            }
+                                        }}
+                                        disabled={joiningCalendar || !joinCode.trim()}
                                         style={{
                                             flex: 1,
                                             padding: "1.2rem",
@@ -362,9 +378,11 @@ function NavBar() {
                                             fontFamily: "Inter, sans-serif",
                                             cursor: "pointer",
                                             fontWeight: "600",
+                                            backgroundColor: joiningCalendar || !joinCode.trim() ? "#5a5f6b" : "#51cf66",
+                                            cursor: joiningCalendar || !joinCode.trim() ? "not-allowed" : "pointer",
                                         }}
                                     >
-                                        Join
+                                        {joiningCalendar ? "Joining..." : "Join"}
                                     </button>
                                 </div>
                             </>
