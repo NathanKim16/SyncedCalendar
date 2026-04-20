@@ -4,7 +4,7 @@ import { useAuth } from "./context/auth/index"
 import { doSignOut } from "./firebase/auth"
 import { updateProfile } from "firebase/auth"
 import { auth } from "../firebase"
-import { setUser, createCalendar, createMembership, getMembershipsByUser, getCalendar, getMembershipByUserAndCalendar, updateCalendar, deleteCalendar, deleteEventsByCalendar, deleteMembershipsByCalendar } from "../services/firestoreService"
+import { setUser, createCalendar, createMembership, getMembershipsByUser, getCalendar, getMembershipByUserAndCalendar, updateCalendar, deleteCalendar, deleteEventsByCalendar, deleteMembershipsByCalendar, deleteMembership, deleteEventsByUserAndCalendar, deleteRSVP, deleteRSVPsByUserAndCalendar } from "../services/firestoreService"
 import { Timestamp } from "firebase/firestore"
 import homeIcon from "../assets/home.png"
 import { inviteCodeFunction } from "../services/CodeInvite"
@@ -36,6 +36,7 @@ function NavBar() {
     const [deletingCalendar, setDeletingCalendar] = useState(false)
     const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 })
     const [joiningCalendar, setJoiningCalendar] = useState(false)
+    const [leavingCalendar, setLeavingCalendar] = useState(false)
 
 
     useEffect(() => {
@@ -875,8 +876,52 @@ function NavBar() {
                                     {deletingCalendar ? "Deleting..." : "Delete Calendar"}
                                     </button>
                                 )}
-                            </div>
-                        )}
+                                </div>
+                            )}
+                            {/* Leave Calendar — only for admins and members, not owners */}
+                            {(["admin", "user"].includes(userCalendarRole ?? "") ) && (
+                                <button
+                                    onClick={async () => {
+                                        if (window.confirm(`Are you sure you want to leave "${selectedCalendarForPopup.name}"?`)) {
+                                            setLeavingCalendar(true)
+                                            try {
+                                                const membership = await getMembershipByUserAndCalendar(
+                                                    currentUser.uid,
+                                                    selectedCalendarForPopup.id
+                                                )
+                                                if (membership) {
+                                                    await deleteEventsByUserAndCalendar(currentUser.uid, selectedCalendarForPopup.id)
+                                                    await deleteRSVPsByUserAndCalendar(currentUser.uid, selectedCalendarForPopup.id)
+                                                    await deleteMembership(membership.id)
+                                                }
+                                                setRefreshCalendars(prev => !prev)
+                                                setShowCalendarPopup(false)
+                                                navigate("/")
+                                            } catch (error) {
+                                                console.error("Error leaving calendar:", error)
+                                            } finally {
+                                                setLeavingCalendar(false)
+                                            }
+                                        }
+                                    }}
+                                    disabled={leavingCalendar}
+                                    style={{
+                                        width: "100%",
+                                        backgroundColor: "transparent",
+                                        border: "1px solid #ff5050",
+                                        borderRadius: "0.5rem",
+                                        padding: "0.7rem",
+                                        color: "#ff5050",
+                                        fontSize: "1.1rem",
+                                        fontFamily: "Inter, sans-serif",
+                                        cursor: leavingCalendar ? "not-allowed" : "pointer",
+                                        opacity: leavingCalendar ? 0.6 : 1,
+                                        marginTop: "0.5rem",
+                                    }}
+                                >
+                                    {leavingCalendar ? "Leaving..." : "Leave Calendar"}
+                                </button>
+                            )}
                         {userCalendarRole !== "owner" && userCalendarRole !== "admin" && (
                             <p style={{
                                 color: "#78879e",
