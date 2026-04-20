@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react"
-import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent, getMembershipsByCalendar, getUser, createRSVP, deleteRSVPByEventAndUser, getIsRSVPByEventAndUser, getRSVPsByUser, updateRSVP, deleteRSVPsByEventID} from "../services/firestoreService"
+import { getMembershipsByUser, getCalendar, getEventsByCalendar, createEvent, deleteEvent, updateEvent, getMembershipsByCalendar, getUser, createRSVP, deleteRSVPByEventAndUser, getIsRSVPByEventAndUser, getRSVPsByUser, updateRSVP, deleteRSVPsByEventID, incrementRSVPCount} from "../services/firestoreService"
 import { useParams } from "react-router-dom"
-import { Timestamp } from "firebase/firestore"
+import { Timestamp, doc, onSnapshot, collection, query, where } from "firebase/firestore"
 import { useAuth } from "./context/auth/index"
 import MembersIcon from "../assets/Members.png"
+import { db } from "../firebase.ts";
 
 const CalendarApp = () => {
   //Major variables
@@ -89,18 +90,15 @@ const CalendarApp = () => {
   //Fetch events for the active calendar
   useEffect(() => {
     if (!activeCalendarId) return
-    const fetchEvents = async () => {
-      try {
-        console.log("Fetching events for calendar:", activeCalendarId)
-        const data = await getEventsByCalendar(activeCalendarId)
-        console.log("Events returned:", data)
-        data.sort((a, b) => a.start_time.toDate() - b.start_time.toDate())
-        setEvents(data)
-      } catch (error) {
-        console.error("Error fetching events:", error)
-      }
-    }
-    fetchEvents()
+    
+    console.log("Fetching events for calendar:", activeCalendarId)
+    const eventsCollection = query(collection(db, "events"), where("cal_id", "==", activeCalendarId));
+    const unsubscribe = onSnapshot(eventsCollection, (snapshot) => {const updatedEvents = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})); 
+    setEvents(updatedEvents)
+    })
+    
+    
+    return () => unsubscribe();
   }, [activeCalendarId])
 
   useEffect(() => {
@@ -247,6 +245,7 @@ useEffect(() => {
       location: "",
       rsvp_deadline: "",
       color: eventColor || "#00a3ff",
+      numberOfRSVPs: 0,
     }
 
     try {
@@ -332,7 +331,7 @@ useEffect(() => {
     if (isRsvp) {
       await deleteRSVPByEventAndUser(event.id, userId)
       setUserRsvps(prev => prev.filter(rsvp => rsvp.event_id !== event.id))
-
+      incrementRSVPCount(event.id, -1)
     }
     else {
       const newRsvp = {
@@ -344,6 +343,7 @@ useEffect(() => {
 
       const docRef = await createRSVP(newRsvp)
       setUserRsvps(prev => [...prev, { ...newRsvp, id: docRef.id }])
+      incrementRSVPCount(event.id, 1)
     }
 
     setActiveEventId(null)
@@ -654,6 +654,11 @@ useEffect(() => {
               </div>
             </div>
             <div className="event-text">{event.title}</div>
+            <div className="event-rsvp-count">{`${event.numberOfRSVPs}`}</div>
+            <div className="users-rsvp">
+              <i className="bx bxs-user"></i>
+            </div>
+
             <div className="rsvp-button">
               <i className={`bx ${hasUserRsvp(event.id) ? 'bxs-calendar-check' : 'bx-calendar-check'}`} onClick={() => { if(hasUserRsvp(event.id)){
                 const existingRsvp = userRsvps.find(rsvp => rsvp.event_id === event.id);
