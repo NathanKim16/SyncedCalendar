@@ -46,7 +46,6 @@ const CalendarApp = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [members, setMembers] = useState([])
   const [showMembersSidebar, setShowMembersSidebar] = useState(false)
-  const [rsvpNote, setRsvpNote] = useState("")
   const [activeEventId, setActiveEventId] = useState(null)
 
   const activeCalendar = calendars.find(cal => cal.id === activeCalendarId)
@@ -345,7 +344,6 @@ useEffect(() => {
       const newRsvp = {
         event_id: event.id,
         user_id: userId,
-        note: rsvpNote,
         timestamp: Timestamp.now(),
       }
 
@@ -357,15 +355,7 @@ useEffect(() => {
     setActiveEventId(null)
     setShowRsvpPopup(false)
   }
-  const handleNoteUpdate = async (eventId) => {
-    const existingRsvp = userRsvps.find(rsvp => rsvp.event_id === eventId);
-    if (existingRsvp) {
-      await updateRSVP(existingRsvp.id, { note: rsvpNote });
-      setUserRsvps(prev => prev.map(rsvp => rsvp.id === existingRsvp.id ? { ...rsvp, note: rsvpNote } : rsvp));
-    }
-    setShowRsvpPopup(false)
-    setActiveEventId(null)
-  }
+
 
   // Handle Member Kick
   const handleKickMember = async (membershipId) => {
@@ -789,12 +779,7 @@ useEffect(() => {
             </div>
 
             <div className="rsvp-button">
-              <i className={`bx ${hasUserRsvp(event.id) ? 'bxs-calendar-check' : 'bx-calendar-check'}`} onClick={() => { if(hasUserRsvp(event.id)){
-                const existingRsvp = userRsvps.find(rsvp => rsvp.event_id === event.id);
-                setRsvpNote(existingRsvp ? existingRsvp.note : "")
-              }else{
-                setRsvpNote("")
-              } setActiveEventId(event.id)}}></i>
+              <i className={`bx ${hasUserRsvp(event.id) ? 'bxs-calendar-check' : 'bx-calendar-check'}`} onClick={() => { setActiveEventId(event.id); handleRsvpClick(event, userId)}}></i>
             </div>
             <div className="event-button">
               <i className="bx bxs-edit-alt" onClick={() => handleEditEvent(event)}></i>
@@ -804,50 +789,7 @@ useEffect(() => {
                 onClick={() => handleDeleteEvent(event.id)}
               ></i>
             </div>
-            {activeEventId === event.id && (
               
-              <div className="rsvp-popup">
-                {hasUserRsvp(event.id) ? (
-                  <>   
-
-                    <textarea 
-                      value={rsvpNote} 
-                      onChange={(e) => setRsvpNote(e.target.value)} 
-                    />
-
-                    <button className="rsvp-delete-btn" onClick={() => handleRsvpClick(event, userId)}>
-                      Delete RSVP
-                    </button>
-
-                    <button className="rsvp-update-btn" onClick={() => handleNoteUpdate(event.id)}>
-                      Update Note
-                    </button>
-
-                    <button className="close-event-popup" onClick={() => {setShowRsvpPopup(false); setActiveEventId(null)}}>
-                      <i className="bx bx-x"></i>
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <textarea
-                      placeholder="Enter Rsvp Note (Max 40 Characters)"
-                      maxLength={40}
-                      value={rsvpNote}
-                      onChange={(r) => setRsvpNote(r.target.value)}
-                    ></textarea>
-                    
-                    <button className="rsvp-pop-btn" onClick={() => handleRsvpClick(event, userId)}>
-                      Submit RSVP
-                    </button>
-                    
-                    <button className="close-event-popup" onClick={() => {setShowRsvpPopup(false); setActiveEventId(null)}}>
-                      <i className="bx bx-x"></i>
-                    </button>
-                  </>
-                )}
-
-              </div>
-            )}
           </div>
           
         ))}

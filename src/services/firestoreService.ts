@@ -50,7 +50,6 @@ interface RSVP {
   event_id: string;
   user_id: string;
   status: string;
-  note: string;
   responded_at: Timestamp;
 }
 
