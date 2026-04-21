@@ -16,6 +16,7 @@ function NavBar() {
     const [showCreateInput, setShowCreateInput] = useState(false)
     const [joinCode, setJoinCode] = useState("")
     const [calendarName, setCalendarName] = useState("")
+    const [calendarDescription, setCalendarDescription] = useState("")
     const [calendarColor, setCalendarColor] = useState("#00a3ff")
     const [displayNameInput, setDisplayNameInput] = useState("")
     const [displayNameError, setDisplayNameError] = useState("")
@@ -32,6 +33,7 @@ function NavBar() {
     const [selectedCalendarForPopup, setSelectedCalendarForPopup] = useState<any>(null)
     const [userCalendarRole, setUserCalendarRole] = useState<string | null>(null)
     const [editingCalendarName, setEditingCalendarName] = useState("")
+    const [editingCalendarDescription, setEditingCalendarDescription] = useState("")
     const [editingCalendarColor, setEditingCalendarColor] = useState("")
     const [deletingCalendar, setDeletingCalendar] = useState(false)
     const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 })
@@ -91,6 +93,7 @@ function NavBar() {
         setShowCreateInput(false)
         setJoinCode("")
         setCalendarName("")
+        setCalendarDescription("")
         setCalendarColor("#00a3ff")
     }
 
@@ -103,7 +106,7 @@ function NavBar() {
             // Create the calendar
             const calendarData = {
                 name: calendarName,
-                description: "",
+                description: calendarDescription,
                 owner_id: currentUser.uid,
                 icon: "",
                 color: calendarColor,
@@ -137,6 +140,15 @@ function NavBar() {
 
     return (
         <>
+            <style>{`
+                .calendar-scroll-container {
+                    scrollbar-width: none;
+                    -ms-overflow-style: none;
+                }
+                .calendar-scroll-container::-webkit-scrollbar {
+                    display: none;
+                }
+            `}</style>
             {/* Modal */}
             {showModal && (
                 <div style={{
@@ -254,6 +266,27 @@ function NavBar() {
                                         outline: "none",
                                         width: "100%",
                                         boxSizing: "border-box" as const,
+                                    }}
+                                    onFocus={e => (e.currentTarget.style.borderColor = "#00a3ff")}
+                                    onBlur={e => (e.currentTarget.style.borderColor = "#2a2f3b")}
+                                />
+                                <textarea
+                                    placeholder="Calendar description (optional)"
+                                    value={calendarDescription}
+                                    onChange={e => setCalendarDescription(e.target.value)}
+                                    style={{
+                                        backgroundColor: "#0f1319",
+                                        border: "1px solid #2a2f3b",
+                                        borderRadius: "0.8rem",
+                                        padding: "1.2rem 1.5rem",
+                                        color: "white",
+                                        fontSize: "1.4rem",
+                                        fontFamily: "Inter, sans-serif",
+                                        outline: "none",
+                                        width: "100%",
+                                        boxSizing: "border-box" as const,
+                                        resize: "vertical",
+                                        minHeight: "4rem",
                                     }}
                                     onFocus={e => (e.currentTarget.style.borderColor = "#00a3ff")}
                                     onBlur={e => (e.currentTarget.style.borderColor = "#2a2f3b")}
@@ -434,8 +467,18 @@ function NavBar() {
                 {/* Separator */}
                 <div style={{ width: "60%", height: "2px", backgroundColor: "#2a2f3b", margin: "0.3rem 0" }} />
 
-                {/* Calendar icons */}
-                {calendars.map((cal) => (
+                {/* Scrollable calendars section */}
+                <div className="calendar-scroll-container" style={{
+                    flex: 1,
+                    overflowY: "auto",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    width: "100%",
+                }}>
+                    {/* Calendar icons */}
+                    {calendars.map((cal) => (
                     <div
                         key={cal.id}
                         style={{
@@ -470,6 +513,7 @@ function NavBar() {
                                     setUserCalendarRole(membership?.role || null)
                                     setSelectedCalendarForPopup(cal)
                                     setEditingCalendarName(cal.name)
+                                    setEditingCalendarDescription(cal.description || "")
                                     setEditingCalendarColor(cal.color)
                                     setPopupPosition({
                                         top: rect.top,
@@ -505,40 +549,44 @@ function NavBar() {
                             {cal.name.charAt(0)}
                         </div>
                     </div>
-                ))}
-
-                {/* Add calendar button */}
-                <div
-                    title="Add Calendar"
-                    onClick={() => setShowModal(true)}
-                    style={{
-                        width: "3.8rem",
-                        height: "3.8rem",
-                        backgroundColor: "#2a2f3b",
-                        borderRadius: "50%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        fontSize: "2.5rem",
-                        color: "rgb(236, 226, 226)",
-                        marginTop: "0.3rem",
-                        transition: "border-radius 0.2s ease, background-color 0.2s ease",
-                    }}
-                    onMouseEnter={e => {
-                        e.currentTarget.style.borderRadius = "1.2rem"
-                        e.currentTarget.style.backgroundColor = "#1e2426"
-                    }}
-                    onMouseLeave={e => {
-                        e.currentTarget.style.borderRadius = "50%"
-                        e.currentTarget.style.backgroundColor = "#2a2f3b"
-                    }}
-                >
-                    +
+                ))}                    
+                    {/* Add calendar button */}
+                    <div
+                        title="Add Calendar"
+                        onClick={() => setShowModal(true)}
+                        style={{
+                            width: "3.8rem",
+                            height: "3.8rem",
+                            backgroundColor: "#2a2f3b",
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            fontSize: "2.5rem",
+                            color: "rgb(236, 226, 226)",
+                            marginTop: "0.3rem",
+                            flexShrink: 0,
+                            transition: "border-radius 0.2s ease, background-color 0.2s ease",
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.borderRadius = "1.2rem"
+                            e.currentTarget.style.backgroundColor = "#1e2426"
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.borderRadius = "50%"
+                            e.currentTarget.style.backgroundColor = "#2a2f3b"
+                        }}
+                    >
+                        +
+                    </div>
                 </div>
 
+                {/* Separator */}
+                <div style={{ width: "60%", height: "2px", backgroundColor: "#2a2f3b", margin: "0.5rem 0" }} />
+
                 {/* User Profile */}
-                <div style={{ marginTop: "auto", marginBottom: "1rem", position: "relative" }}>
+                <div style={{ marginBottom: "1rem", position: "relative" }}>
                     <div
                         title="Profile"
                         onClick={() => setShowUserMenu(!showUserMenu)}
@@ -782,6 +830,36 @@ function NavBar() {
                                         display: "block",
                                         marginBottom: "0.5rem",
                                     }}>
+                                        Calendar Description
+                                    </label>
+                                    <textarea
+                                        value={editingCalendarDescription}
+                                        onChange={e => setEditingCalendarDescription(e.target.value)}
+                                        placeholder="Add a description..."
+                                        style={{
+                                            backgroundColor: "#0f1319",
+                                            border: "1px solid #2a2f3b",
+                                            borderRadius: "0.5rem",
+                                            padding: "0.7rem",
+                                            color: "white",
+                                            fontSize: "1.1rem",
+                                            fontFamily: "Inter, sans-serif",
+                                            width: "100%",
+                                            boxSizing: "border-box",
+                                            resize: "vertical",
+                                            minHeight: "3rem",
+                                        }}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={{
+                                        color: "#78879e",
+                                        fontSize: "1.05rem",
+                                        fontFamily: "Inter, sans-serif",
+                                        display: "block",
+                                        marginBottom: "0.5rem",
+                                    }}>
                                         Calendar Color
                                     </label>
                                     <input
@@ -804,6 +882,7 @@ function NavBar() {
                                             if (editingCalendarName.trim()) {
                                                 await updateCalendar(selectedCalendarForPopup.id, {
                                                     name: editingCalendarName,
+                                                    description: editingCalendarDescription,
                                                     color: editingCalendarColor,
                                                 })
                                                 setRefreshCalendars(!refreshCalendars)
