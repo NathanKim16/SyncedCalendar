@@ -171,6 +171,12 @@ export const incrementRSVPCount = async (id: string, amount: number) => {
   await updateDoc(eventRef, { numberOfRSVPs: increment(amount) });
 };
 
+export const deleteEventsByUserAndCalendar = async (user_id: string, cal_id: string) => {
+  const q = query(collection(db, "events"), where("created_by", "==", user_id), where("cal_id", "==", cal_id))
+  const snapshot = await getDocs(q)
+  await Promise.all(snapshot.docs.map(doc => deleteDoc(doc.ref)))
+}
+
 
 // ─── RSVPS ───────────────────────────────────────────────
 
